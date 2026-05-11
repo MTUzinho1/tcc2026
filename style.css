@@ -1,1 +1,93 @@
+:root {
+    --primary-color: #2c3e50;
+    --accent-color: #3498db;
+    --success-color: #27ae60;
+    --bg-color: #f4f7f6;
+    --card-bg: #ffffff;
+}
 
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    margin: 0;
+}
+
+/* Telas de Login/Cadastro */
+#auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+}
+
+.auth-card {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    width: 320px;
+    text-align: center;
+}
+
+.hidden { display: none !important; }
+
+/* Navegação */
+nav {
+    background: var(--primary-color);
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    color: white;
+}
+
+.nav-links span {
+    margin-left: 15px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+/* Grid de Livros */
+.book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.book-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    transition: 0.3s;
+}
+
+.book-card:hover { transform: translateY(-5px); }
+
+.book-cover { height: 250px; background-size: cover; background-position: center; }
+
+.book-info { padding: 15px; }
+
+.status-badge {
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+.status-read { background: #d4edda; color: #155724; }
+.status-loaned { background: #f8d7da; color: #721c24; }
+
+.btn-loan {
+    width: 100%;
+    padding: 8px;
+    margin-top: 10px;
+    border: none;
+    background: var(--accent-color);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
