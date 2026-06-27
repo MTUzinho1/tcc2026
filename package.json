@@ -1,0 +1,39 @@
+{
+  "name": "bookshare-api",
+  "version": "10.0.0",
+  "private": true,
+  "description": "Sistema completo de gestão de biblioteca escolar com frontend responsivo, Node.js, Render e Supabase PostgreSQL.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js && node --check script.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "bookshare",
+    "biblioteca",
+    "biblioteca-escolar",
+    "emprestimos",
+    "reservas",
+    "render",
+    "supabase",
+    "postgresql",
+    "express"
+  ],
+  "author": "Equipe BookShare",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "sharp": "^0.33.5"
+  }
+}
