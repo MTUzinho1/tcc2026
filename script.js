@@ -822,8 +822,7 @@ function normalizeLoginPassword(value) {
   return String(value ?? "")
     .normalize("NFKC")
     .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
-    .replace(/\u00A0/g, " ")
-    .trim();
+    .replace(/\u00A0/g, " ");
 }
 
 async function handleLogin(event) {
@@ -839,7 +838,6 @@ async function handleLogin(event) {
   const password = normalizeLoginPassword($("#login-password").value);
 
   $("#login-email").value = email;
-  $("#login-password").value = password;
 
   const submitButton = $("#login-submit");
 
