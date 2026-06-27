@@ -2927,6 +2927,46 @@ function cleanEmail(value) {
 
 }
 
+async function verifyPassword(password, passwordHash) {
+
+  if (!password || !passwordHash) return false;
+
+ 
+
+  try {
+
+    if (await bcrypt.compare(password, passwordHash)) return true;
+
+  } catch (error) {
+
+    console.warn("Falha na verificação bcryptjs; tentando pgcrypto:", error.message);
+
+  }
+
+ 
+
+  try {
+
+    const result = await pool.query(
+
+      "SELECT crypt($1, $2) = $2 AS matches",
+
+      [password, passwordHash]
+
+    );
+
+    return result.rows[0]?.matches === true;
+
+  } catch (error) {
+
+    console.warn("Falha na verificação de senha pelo pgcrypto:", error.message);
+
+    return false;
+
+  }
+
+}
+
  
 
 function signToken(user) {
@@ -3223,6 +3263,8 @@ async function ensureRuntimeSchema() {
 
   const migrations = [
 
+    `CREATE EXTENSION IF NOT EXISTS pgcrypto`,
+
     `CREATE TABLE IF NOT EXISTS schools (
 
        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3277,7 +3319,13 @@ async function ensureRuntimeSchema() {
 
     `CREATE INDEX IF NOT EXISTS books_school_id_idx ON books (school_id)`,
 
-    `CREATE INDEX IF NOT EXISTS books_cover_source_idx ON books (cover_source)`
+    `CREATE INDEX IF NOT EXISTS books_cover_source_idx ON books (cover_source)`,
+
+    `CREATE INDEX IF NOT EXISTS users_deleted_at_idx ON users (deleted_at)`,
+
+    `CREATE INDEX IF NOT EXISTS loans_status_due_date_idx ON loans (status, due_date)`,
+
+    `CREATE INDEX IF NOT EXISTS reservations_status_expires_at_idx ON reservations (status, expires_at)`
 
   ];
 
@@ -3391,7 +3439,11 @@ async function ensureInitialUsers() {
 
     const existing = await pool.query(
 
-      "SELECT id, role FROM users WHERE email = $1",
+      `SELECT id, role, active, deleted_at, password_hash
+
+       FROM users
+
+       WHERE email = $1`,
 
       [account.email]
 
@@ -3401,21 +3453,43 @@ async function ensureInitialUsers() {
 
     if (existing.rows[0]) {
 
-      if (existing.rows[0].role !== account.role) {
+      const current = existing.rows[0];
 
-        await pool.query(
+      const resetInitialPasswords = String(process.env.RESET_INITIAL_PASSWORDS || "false").toLowerCase() === "true";
 
-          `UPDATE users
+      const invalidHash = !/^\$2[aby]\$\d{2}\$/.test(String(current.password_hash || ""));
 
-           SET role = $1, active = TRUE, updated_at = NOW()
+      const passwordHash = resetInitialPasswords || invalidHash
 
-           WHERE id = $2`,
+        ? await bcrypt.hash(account.password, 12)
 
-          [account.role, existing.rows[0].id]
+        : current.password_hash;
 
-        );
+ 
 
-      }
+      await pool.query(
+
+        `UPDATE users
+
+         SET name = COALESCE(NULLIF(name, ''), $1),
+
+             role = $2,
+
+             active = TRUE,
+
+             deleted_at = NULL,
+
+             password_hash = $3,
+
+             job_title = COALESCE(job_title, CASE WHEN $2 = 'admin' THEN 'Administrador do sistema' ELSE 'Bibliotecária' END),
+
+             updated_at = NOW()
+
+         WHERE id = $4`,
+
+        [account.name, account.role, passwordHash, current.id]
+
+      );
 
       continue;
 
@@ -4701,6 +4775,8 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
 
        u.school_id,
 
+       u.last_login_at,
+
        s.name AS school_name
 
      FROM users u
@@ -4723,7 +4799,7 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
 
  
 
-  const passwordMatches = await bcrypt.compare(password, user.password_hash);
+  const passwordMatches = await verifyPassword(password, user.password_hash);
 
   if (!passwordMatches) throw httpError(401, "E-mail ou senha incorretos.");
 
@@ -4861,7 +4937,7 @@ app.put("/api/auth/change-password", authenticate, asyncRoute(async (req, res) =
 
   const result = await pool.query(
 
-    "SELECT password_hash FROM users WHERE id = $1",
+    "SELECT password_hash FROM users WHERE id = $1 AND deleted_at IS NULL",
 
     [req.user.id]
 
@@ -4869,7 +4945,9 @@ app.put("/api/auth/change-password", authenticate, asyncRoute(async (req, res) =
 
  
 
-  const matches = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+  if (!result.rows[0]) throw httpError(404, "Conta não encontrada.");
+
+  const matches = await verifyPassword(currentPassword, result.rows[0].password_hash);
 
   if (!matches) throw httpError(400, "A senha atual está incorreta.");
 
@@ -4925,6 +5003,8 @@ app.put("/api/auth/change-password", authenticate, asyncRoute(async (req, res) =
 
 app.get("/api/notifications", authenticate, requireRole("librarian"), asyncRoute(async (req, res) => {
 
+  res.set("Cache-Control", "no-store");
+
   const settings = await getSettings();
 
   const dueSoonDays = Number(settings.due_soon_days || 2);
@@ -4967,7 +5047,7 @@ app.get("/api/notifications", authenticate, requireRole("librarian"), asyncRoute
 
       ORDER BY l.due_date ASC, s.full_name
 
-      LIMIT 40
+      LIMIT 100
 
     `, [dueSoonDays, req.user.school_id || null]),
 
@@ -4995,7 +5075,7 @@ app.get("/api/notifications", authenticate, requireRole("librarian"), asyncRoute
 
       ORDER BY r.expires_at NULLS LAST, r.created_at
 
-      LIMIT 20
+      LIMIT 50
 
     `, [req.user.school_id || null])
 
@@ -5106,6 +5186,8 @@ app.get("/api/notifications", authenticate, requireRole("librarian"), asyncRoute
   res.json({
 
     generated_at: new Date().toISOString(),
+
+    count: items.length,
 
     notifications: items
 
@@ -8491,6 +8573,162 @@ app.post("/api/users", authenticate, requireRole("admin"), asyncRoute(async (req
 
  
 
+app.put("/api/users/:id", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+
+  const currentResult = await pool.query(
+
+    `SELECT id, name, email, role, active, phone, job_title, school_id
+
+     FROM users
+
+     WHERE id = $1
+
+       AND deleted_at IS NULL`,
+
+    [req.params.id]
+
+  );
+
+  const current = currentResult.rows[0];
+
+  if (!current) throw httpError(404, "Conta não encontrada.");
+
+  const name = requiredText(req.body.name ?? current.name, "o nome", 120);
+
+  const email = cleanEmail(req.body.email ?? current.email);
+
+  const role = requiredText(req.body.role ?? current.role, "o perfil");
+
+  const phone = req.body.phone === undefined ? current.phone : cleanText(req.body.phone, 40);
+
+  const jobTitle = req.body.job_title === undefined
+
+    ? (current.job_title || (role === "admin" ? "Administrador do sistema" : "Bibliotecária"))
+
+    : (cleanText(req.body.job_title, 80) || (role === "admin" ? "Administrador do sistema" : "Bibliotecária"));
+
+  const schoolId = req.body.school_id === undefined ? current.school_id : cleanText(req.body.school_id, 60);
+
+  const active = req.body.active === undefined ? current.active : cleanBoolean(req.body.active, current.active);
+
+  const password = String(req.body.password || "");
+
+  if (!["admin", "librarian"].includes(role)) throw httpError(400, "Perfil inválido.");
+
+  if (password && password.length < 8) throw httpError(400, "A nova senha deve ter pelo menos 8 caracteres.");
+
+  if (req.params.id === req.user.id && role !== "admin") {
+
+    throw httpError(400, "Você não pode remover seu próprio perfil de administrador.");
+
+  }
+
+  if (req.params.id === req.user.id && !active) {
+
+    throw httpError(400, "Você não pode bloquear sua própria conta.");
+
+  }
+
+  if (schoolId) {
+
+    const school = await pool.query("SELECT id FROM schools WHERE id = $1 AND active = TRUE", [schoolId]);
+
+    if (!school.rows[0]) throw httpError(400, "A escola selecionada não está disponível.");
+
+  }
+
+  const passwordHash = password ? await bcrypt.hash(password, 12) : null;
+
+  const client = await pool.connect();
+
+  try {
+
+    await client.query("BEGIN");
+
+    const result = await client.query(`
+
+      UPDATE users
+
+      SET name = $1,
+
+          email = $2,
+
+          role = $3,
+
+          phone = $4,
+
+          job_title = $5,
+
+          school_id = $6,
+
+          active = $7,
+
+          password_hash = COALESCE($8, password_hash),
+
+          updated_at = NOW()
+
+      WHERE id = $9
+
+        AND deleted_at IS NULL
+
+      RETURNING id, name, email, role, active, avatar_url, phone, job_title, school_id, last_login_at, created_at, updated_at
+
+    `, [name, email, role, phone, jobTitle, schoolId || null, active, passwordHash, req.params.id]);
+
+    await audit(client, req, "update", "user", req.params.id, {
+
+      name,
+
+      email,
+
+      role,
+
+      active,
+
+      school_id: schoolId || null,
+
+      password_changed: Boolean(password)
+
+    });
+
+    await client.query("COMMIT");
+
+    const schoolResult = result.rows[0].school_id
+
+      ? await pool.query("SELECT name FROM schools WHERE id = $1", [result.rows[0].school_id])
+
+      : { rows: [] };
+
+    res.json({
+
+      user: {
+
+        ...result.rows[0],
+
+        school_name: schoolResult.rows[0]?.name || null
+
+      }
+
+    });
+
+  } catch (error) {
+
+    await client.query("ROLLBACK");
+
+    if (error.code === "23505") throw httpError(409, "Já existe uma conta com esse e-mail.");
+
+    throw error;
+
+  } finally {
+
+    client.release();
+
+  }
+
+}));
+
+ 
+
 app.delete("/api/users/:id", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
 
   if (req.params.id === req.user.id) {
@@ -8633,9 +8871,9 @@ app.put("/api/users/:id/status", authenticate, requireRole("admin"), asyncRoute(
 
  
 
-app.put("/api/users/:id/password", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+const adminResetUserPassword = asyncRoute(async (req, res) => {
 
-  const password = String(req.body.password || "");
+  const password = String(req.body.password || req.body.new_password || "");
 
   if (password.length < 8) throw httpError(400, "A senha deve ter pelo menos 8 caracteres.");
 
@@ -8651,11 +8889,19 @@ app.put("/api/users/:id/password", authenticate, requireRole("admin"), asyncRout
 
     const result = await client.query(`
 
-      UPDATE users SET password_hash = $1, updated_at = NOW()
+      UPDATE users
+
+      SET password_hash = $1,
+
+          active = TRUE,
+
+          deleted_at = NULL,
+
+          updated_at = NOW()
 
       WHERE id = $2
 
-      RETURNING id, name
+      RETURNING id, name, email, role, active
 
     `, [passwordHash, req.params.id]);
 
@@ -8665,7 +8911,7 @@ app.put("/api/users/:id/password", authenticate, requireRole("admin"), asyncRout
 
     await client.query("COMMIT");
 
-    res.json({ message: "Senha atualizada." });
+    res.json({ message: "Senha atualizada.", user: result.rows[0] });
 
   } catch (error) {
 
@@ -8679,7 +8925,11 @@ app.put("/api/users/:id/password", authenticate, requireRole("admin"), asyncRout
 
   }
 
-}));
+});
+
+app.put("/api/users/:id/password", authenticate, requireRole("admin"), adminResetUserPassword);
+
+app.post("/api/users/:id/reset-password", authenticate, requireRole("admin"), adminResetUserPassword);
 
  
 
@@ -8864,6 +9114,12 @@ app.use((error, _req, res, _next) => {
   if (error.code === "23514") {
 
     return res.status(400).json({ message: "Um dos valores enviados não atende às regras do banco." });
+
+  }
+
+  if (error.code === "23505") {
+
+    return res.status(409).json({ message: "Já existe um cadastro com essas informações." });
 
   }
 
