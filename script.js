@@ -9,7 +9,7 @@ const CONFIG = {
 
   TOKEN_KEY: "bookshare_token",
 
-  REQUEST_TIMEOUT: 25000,
+  REQUEST_TIMEOUT: 60000,
 
   SEARCH_DELAY: 260
 
@@ -69,7 +69,11 @@ const state = {
 
   bookCoverCache: new Map(),
 
-  bookCoverRequests: new Map()
+  bookCoverRequests: new Map(),
+
+  editingUserId: null,
+
+  adminPasswordTargetId: null
 
 };
 
@@ -245,6 +249,8 @@ async function initializeApplication() {
 
   initializeBookCoverHydration();
 
+  ensureAdminPasswordDialog();
+
   bindApplicationEvents();
 
   initializeDates();
@@ -336,6 +342,10 @@ function bindApplicationEvents() {
   window.addEventListener("hashchange", handleHashChange);
 
   window.addEventListener("resize", handleWindowResize);
+
+  window.addEventListener("focus", handleApplicationFocus);
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
 
  
 
@@ -685,6 +695,8 @@ async function dispatchAction(action, data) {
 
     "copy-reservation": () => copyReservationMessage(data.id),
 
+    "edit-user": () => editUser(data.id),
+
     "toggle-user": () => toggleUser(data.id, data.active === "true"),
 
     "reset-user-password": () => resetUserPassword(data.id),
@@ -757,6 +769,22 @@ function handleWindowResize() {
 
 }
 
+function handleApplicationFocus() {
+
+  if (state.user?.role === "librarian") loadNotifications({ announce: true });
+
+}
+
+function handleVisibilityChange() {
+
+  if (!document.hidden && state.user?.role === "librarian") {
+
+    loadNotifications({ announce: true });
+
+  }
+
+}
+
  
 
 async function handleLogin(event) {
@@ -808,6 +836,8 @@ async function handleLogin(event) {
       method: "POST",
 
       auth: false,
+
+      timeoutMs: 90000,
 
       body: { email, password }
 
@@ -1001,19 +1031,15 @@ function configureUserInterface() {
 
   $$("[data-settings-tab]").forEach(button => {
 
-    button.classList.toggle(
+    const accountOnly = button.dataset.settingsTab === "account";
 
-      "is-hidden",
-
-      button.dataset.settingsTab !== "account"
-
-    );
+    button.classList.toggle("is-hidden", !isAdmin && !accountOnly);
 
   });
 
  
 
-  $(".settings-form__footer")?.classList.add("is-hidden");
+  $(".settings-form__footer")?.classList.toggle("is-hidden", !isAdmin);
 
   switchSettingsTab("account");
 
@@ -1097,7 +1123,7 @@ function configureUserInterface() {
 
 async function loadCoreData() {
 
-  await Promise.all([
+  const coreResults = await Promise.allSettled([
 
     loadSettings(),
 
@@ -1113,9 +1139,13 @@ async function loadCoreData() {
 
  
 
+  reportDataLoadFailures(coreResults, "dados principais");
+
+ 
+
   if (state.user?.role === "admin") {
 
-    await Promise.all([
+    const adminResults = await Promise.allSettled([
 
       loadSchools(),
 
@@ -1124,6 +1154,8 @@ async function loadCoreData() {
     ]);
 
  
+
+    reportDataLoadFailures(adminResults, "painel administrativo");
 
     state.loans = [];
 
@@ -1135,7 +1167,7 @@ async function loadCoreData() {
 
   } else {
 
-    await Promise.all([
+    const librarianResults = await Promise.allSettled([
 
       loadLoans(),
 
@@ -1149,6 +1181,8 @@ async function loadCoreData() {
 
  
 
+    reportDataLoadFailures(librarianResults, "painel da bibliotecária");
+
     startNotificationPolling();
 
   }
@@ -1158,6 +1192,28 @@ async function loadCoreData() {
   updateAllSelectOptions();
 
   buildNotifications();
+
+}
+
+function reportDataLoadFailures(results, area) {
+
+  const failures = results.filter(result => result.status === "rejected");
+
+  if (!failures.length) return;
+
+ 
+
+  console.warn(`Falhas parciais ao carregar ${area}:`, failures.map(item => item.reason?.message || item.reason));
+
+  toast(
+
+    "Acesso realizado com aviso",
+
+    `Algumas informações de ${area} ainda não responderam. Use o botão de atualizar em alguns segundos.`,
+
+    "warning"
+
+  );
 
 }
 
@@ -11519,13 +11575,15 @@ function renderUsers() {
 
       </div>
 
-      <div class="card-footer-actions card-footer-actions--three">
+      <div class="card-footer-actions">
 
-        <button class="button button--secondary button--compact" data-action="reset-user-password" data-id="${item.id}" type="button">Senha</button>
+        <button class="button button--secondary button--compact" data-action="edit-user" data-id="${item.id}" type="button">Editar</button>
 
-        <button class="button button--ghost button--compact" data-action="toggle-user" data-id="${item.id}" data-active="${item.active}" type="button">${item.active ? "Bloquear" : "Ativar"}</button>
+        <button class="button button--secondary button--compact" data-action="reset-user-password" data-id="${item.id}" type="button">Alterar senha</button>
 
-        <button class="button button--danger button--compact" data-action="delete-user" data-id="${item.id}" type="button">Excluir</button>
+        ${item.id !== state.user.id ? `<button class="button button--ghost button--compact" data-action="toggle-user" data-id="${item.id}" data-active="${item.active}" type="button">${item.active ? "Bloquear" : "Ativar"}</button>` : ""}
+
+        ${item.id !== state.user.id ? `<button class="button button--danger button--compact" data-action="delete-user" data-id="${item.id}" type="button">Excluir</button>` : ""}
 
       </div>
 
@@ -11543,35 +11601,195 @@ async function handleCreateUser(event) {
 
   const form = event.currentTarget;
 
+  const id = form.dataset.userId || state.editingUserId || "";
+
   const payload = formToObject(form);
 
   const submit = form.querySelector('[type="submit"]');
 
-  setButtonLoading(submit, true, "Criando...");
+ 
+
+  payload.name = String(payload.name || "").trim();
+
+  payload.email = String(payload.email || "").trim().toLowerCase();
+
+  payload.role = payload.role || "librarian";
+
+ 
+
+  if (!payload.name || !payload.email) {
+
+    toast("Cadastro incompleto", "Informe pelo menos nome e e-mail.", "warning");
+
+    return;
+
+  }
+
+ 
+
+  if (!id && String(payload.password || "").length < 8) {
+
+    toast("Senha inválida", "A senha inicial precisa ter pelo menos 8 caracteres.", "warning");
+
+    return;
+
+  }
+
+ 
+
+  if (id && !payload.password) delete payload.password;
+
+  setButtonLoading(submit, true, id ? "Salvando..." : "Criando...");
 
  
 
   try {
 
-    await api("/users", { method: "POST", body: payload });
+    const response = await api(id ? `/users/${id}` : "/users", {
 
-    form.reset();
+      method: id ? "PUT" : "POST",
+
+      body: payload
+
+    });
+
+ 
+
+    if (id === state.user.id && response.user) {
+
+      state.user = { ...state.user, ...response.user };
+
+      configureUserInterface();
+
+    }
+
+ 
+
+    resetUserFormMode();
 
     closeModal("user-modal");
 
-    await loadUsers();
+    await Promise.allSettled([loadUsers(), loadDashboardSafe()]);
 
-    toast("Usuário criado", "A conta já pode acessar o BookShare.");
+    toast(id ? "Usuário atualizado" : "Usuário criado", id ? "Os dados da conta foram salvos." : "A conta já pode acessar o BookShare.");
 
   } catch (error) {
 
-    toast("Não foi possível criar", error.message, "error");
+    toast(id ? "Não foi possível atualizar" : "Não foi possível criar", error.message, "error");
 
   } finally {
 
     setButtonLoading(submit, false);
 
+    if (!state.editingUserId && submit) submit.textContent = "Criar conta";
+
   }
+
+}
+
+function editUser(id) {
+
+  const user = state.users.find(item => item.id === id);
+
+  const form = $("#user-form");
+
+  if (!user || !form) return;
+
+ 
+
+  resetUserFormMode();
+
+  updateAllSelectOptions();
+
+  state.editingUserId = id;
+
+  form.dataset.userId = id;
+
+  fillForm(form, {
+
+    name: user.name,
+
+    email: user.email,
+
+    role: user.role,
+
+    phone: user.phone || "",
+
+    job_title: user.job_title || "",
+
+    school_id: user.school_id || "",
+
+    active: user.active
+
+  });
+
+ 
+
+  const passwordField = form.elements.password;
+
+  if (passwordField) {
+
+    passwordField.value = "";
+
+    passwordField.required = false;
+
+    passwordField.placeholder = "Deixe em branco para manter a senha";
+
+  }
+
+ 
+
+  setUserModalTitle("Editar funcionária");
+
+  const submit = form.querySelector('[type="submit"]');
+
+  if (submit) submit.textContent = "Salvar alterações";
+
+  openModal("user-modal", { dataset: { preserveUserForm: "true" } });
+
+}
+
+function resetUserFormMode() {
+
+  const form = $("#user-form");
+
+  state.editingUserId = null;
+
+  if (!form) return;
+
+ 
+
+  delete form.dataset.userId;
+
+  form.reset();
+
+  const passwordField = form.elements.password;
+
+  if (passwordField) {
+
+    passwordField.required = true;
+
+    passwordField.placeholder = passwordField.dataset.defaultPlaceholder || "Senha inicial com pelo menos 8 caracteres";
+
+  }
+
+ 
+
+  setUserModalTitle("Cadastrar funcionária");
+
+  const submit = form.querySelector('[type="submit"]');
+
+  if (submit) submit.textContent = "Criar conta";
+
+}
+
+function setUserModalTitle(text) {
+
+  const dialog = $("#user-modal");
+
+  const title = $("#user-modal-title") || $("h2", dialog) || $("h3", dialog);
+
+  if (title) title.textContent = text;
 
 }
 
@@ -11675,11 +11893,127 @@ async function deleteUser(id) {
 
  
 
-async function resetUserPassword(id) {
+function resetUserPassword(id) {
 
-  const password = prompt("Digite uma nova senha com pelo menos 8 caracteres:");
+  const user = state.users.find(item => item.id === id);
 
-  if (password === null) return;
+  const dialog = ensureAdminPasswordDialog();
+
+  state.adminPasswordTargetId = id;
+
+  dialog.dataset.userId = id;
+
+  $("#admin-password-target").textContent = user ? `${user.name} · ${user.email}` : "Conta selecionada";
+
+  $("#admin-new-password").value = "";
+
+  $("#admin-confirm-password").value = "";
+
+  document.body.classList.add("modal-open");
+
+  if (!dialog.open) dialog.showModal();
+
+  setTimeout(() => $("#admin-new-password")?.focus(), 60);
+
+}
+
+function ensureAdminPasswordDialog() {
+
+  let dialog = $("#admin-password-modal");
+
+  if (dialog) return dialog;
+
+ 
+
+  dialog = document.createElement("dialog");
+
+  dialog.id = "admin-password-modal";
+
+  dialog.className = "modal";
+
+  dialog.innerHTML = `
+
+    <div class="modal-card">
+
+      <div class="modal-card__header">
+
+        <div>
+
+          <span class="eyebrow">Administração de acesso</span>
+
+          <h2>Alterar senha da conta</h2>
+
+          <p id="admin-password-target"></p>
+
+        </div>
+
+        <button class="modal-close" data-close-modal type="button" aria-label="Fechar">×</button>
+
+      </div>
+
+      <form id="admin-password-form" class="form-grid">
+
+        <label class="field">
+
+          <span>Nova senha</span>
+
+          <input id="admin-new-password" name="password" type="password" minlength="8" autocomplete="new-password" required>
+
+          <small>Use pelo menos 8 caracteres.</small>
+
+        </label>
+
+        <label class="field">
+
+          <span>Confirmar nova senha</span>
+
+          <input id="admin-confirm-password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
+
+        </label>
+
+        <div class="modal-card__footer">
+
+          <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+          <button id="admin-password-submit" class="button button--primary" type="submit">Salvar nova senha</button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  `;
+
+ 
+
+  document.body.appendChild(dialog);
+
+  $("#admin-password-form", dialog).addEventListener("submit", handleAdminPasswordReset);
+
+  return dialog;
+
+}
+
+async function handleAdminPasswordReset(event) {
+
+  event.preventDefault();
+
+  const id = state.adminPasswordTargetId || event.currentTarget.closest("dialog")?.dataset.userId;
+
+  const password = $("#admin-new-password").value;
+
+  const confirmation = $("#admin-confirm-password").value;
+
+ 
+
+  if (!id) {
+
+    toast("Conta não encontrada", "Feche a janela e selecione novamente a conta.", "error");
+
+    return;
+
+  }
 
   if (password.length < 8) {
 
@@ -11689,17 +12023,37 @@ async function resetUserPassword(id) {
 
   }
 
+  if (password !== confirmation) {
+
+    toast("Senhas diferentes", "Digite a mesma senha nos dois campos.", "warning");
+
+    return;
+
+  }
+
  
+
+  const button = $("#admin-password-submit");
+
+  setButtonLoading(button, true, "Salvando...");
 
   try {
 
     await api(`/users/${id}/password`, { method: "PUT", body: { password } });
 
-    toast("Senha redefinida", "A nova senha já pode ser utilizada.");
+    state.adminPasswordTargetId = null;
+
+    closeModal("admin-password-modal");
+
+    toast("Senha redefinida", "A nova senha já pode ser utilizada no login.");
 
   } catch (error) {
 
     toast("Não foi possível alterar", error.message, "error");
+
+  } finally {
+
+    setButtonLoading(button, false);
 
   }
 
@@ -12881,7 +13235,7 @@ function startNotificationPolling() {
 
     loadNotifications({ announce: true });
 
-  }, 60000);
+  }, 30000);
 
 }
 
@@ -13041,6 +13395,12 @@ function openModal(id, trigger = null) {
 
   }
 
+  if (id === "user-modal" && trigger?.dataset.preserveUserForm !== "true") {
+
+    resetUserFormMode();
+
+  }
+
  
 
   updateAllSelectOptions();
@@ -13092,6 +13452,18 @@ function closeModal(id) {
   if (id === "class-modal") $("#class-modal-title").textContent = "Cadastrar turma";
 
   if (id === "school-modal") $("#school-modal-title").textContent = "Cadastrar escola";
+
+  if (id === "user-modal") resetUserFormMode();
+
+  if (id === "admin-password-modal") {
+
+    state.adminPasswordTargetId = null;
+
+    if ($("#admin-new-password")) $("#admin-new-password").value = "";
+
+    if ($("#admin-confirm-password")) $("#admin-confirm-password").value = "";
+
+  }
 
  
 
@@ -13501,7 +13873,9 @@ async function api(path, options = {}) {
 
     auth = true,
 
-    headers = {}
+    headers = {},
+
+    timeoutMs = CONFIG.REQUEST_TIMEOUT
 
   } = options;
 
@@ -13509,7 +13883,7 @@ async function api(path, options = {}) {
 
   const controller = new AbortController();
 
-  const timeout = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
  
 
