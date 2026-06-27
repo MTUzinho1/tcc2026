@@ -247,6 +247,8 @@ window.addEventListener("DOMContentLoaded", initializeApplication);
 
 async function initializeApplication() {
 
+  configureLoginInputs();
+
   initializeBookCoverHydration();
 
   ensureAdminPasswordDialog();
@@ -787,6 +789,43 @@ function handleVisibilityChange() {
 
  
 
+function configureLoginInputs() {
+  const emailInput = $("#login-email");
+  const passwordInput = $("#login-password");
+
+  if (emailInput) {
+    emailInput.setAttribute("autocomplete", "username");
+    emailInput.setAttribute("autocapitalize", "none");
+    emailInput.setAttribute("autocorrect", "off");
+    emailInput.setAttribute("spellcheck", "false");
+    emailInput.setAttribute("inputmode", "email");
+  }
+
+  if (passwordInput) {
+    passwordInput.setAttribute("autocomplete", "current-password");
+    passwordInput.setAttribute("autocapitalize", "none");
+    passwordInput.setAttribute("autocorrect", "off");
+    passwordInput.setAttribute("spellcheck", "false");
+  }
+}
+
+function normalizeLoginEmail(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeLoginPassword(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ")
+    .trim();
+}
+
 async function handleLogin(event) {
 
   event.preventDefault();
@@ -795,9 +834,12 @@ async function handleLogin(event) {
 
  
 
-  const email = $("#login-email").value.trim().toLowerCase();
+  const email = normalizeLoginEmail($("#login-email").value);
 
-  const password = $("#login-password").value;
+  const password = normalizeLoginPassword($("#login-password").value);
+
+  $("#login-email").value = email;
+  $("#login-password").value = password;
 
   const submitButton = $("#login-submit");
 
@@ -13916,6 +13958,8 @@ async function api(path, options = {}) {
       headers: requestHeaders,
 
       body: body === undefined ? undefined : JSON.stringify(body),
+
+      cache: "no-store",
 
       signal: controller.signal
 
