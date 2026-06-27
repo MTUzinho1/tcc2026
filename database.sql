@@ -753,11 +753,12 @@ ON CONFLICT (name) DO NOTHING;
 -- Contas iniciais para apresentação.
 -- Em uma instalação nova, cria as senhas abaixo.
 -- Se a conta já existir, preserva a senha alterada pelo administrador.
-INSERT INTO users (name, email, password_hash, role, active) VALUES
+INSERT INTO users (name, email, password_hash, password_changed_at, role, active) VALUES
   (
     'Administrador BookShare',
     'admin@bookshare.com',
     crypt('BookShare@2026', gen_salt('bf', 12)),
+    NULL,
     'admin'::user_role,
     TRUE
   ),
@@ -765,6 +766,7 @@ INSERT INTO users (name, email, password_hash, role, active) VALUES
     'Bibliotecária',
     'biblioteca@bookshare.com',
     crypt('Biblioteca@2026', gen_salt('bf', 12)),
+    NULL,
     'librarian'::user_role,
     TRUE
   )
@@ -2087,6 +2089,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(40);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(80);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS system_key VARCHAR(60);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS system_migrations (
   migration_key VARCHAR(140) PRIMARY KEY,
