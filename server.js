@@ -2928,46 +2928,42 @@ function cleanEmail(value) {
 }
 
 async function verifyPassword(password, passwordHash) {
-
   if (!password || !passwordHash) return false;
 
- 
+  const original = String(password);
+  const normalized = original.normalize("NFKC");
+  const candidates = [...new Set([
+    original,
+    original.trim(),
+    normalized,
+    normalized.trim()
+  ])].filter(Boolean);
 
-  try {
-
-    if (await bcrypt.compare(password, passwordHash)) return true;
-
-  } catch (error) {
-
-    console.warn("Falha na verificação bcryptjs; tentando pgcrypto:", error.message);
-
+  for (const candidate of candidates) {
+    try {
+      if (await bcrypt.compare(candidate, passwordHash)) return true;
+    } catch (error) {
+      console.warn("Falha na verificação bcryptjs; tentando pgcrypto:", error.message);
+      break;
+    }
   }
 
- 
+  for (const candidate of candidates) {
+    try {
+      const result = await pool.query(
+        "SELECT crypt($1::text, $2::text) = $2::text AS matches",
+        [candidate, passwordHash]
+      );
 
-  try {
-
-    const result = await pool.query(
-
-      "SELECT crypt($1, $2) = $2 AS matches",
-
-      [password, passwordHash]
-
-    );
-
-    return result.rows[0]?.matches === true;
-
-  } catch (error) {
-
-    console.warn("Falha na verificação de senha pelo pgcrypto:", error.message);
-
-    return false;
-
+      if (result.rows[0]?.matches === true) return true;
+    } catch (error) {
+      console.warn("Falha na verificação de senha pelo pgcrypto:", error.message);
+      return false;
+    }
   }
 
+  return false;
 }
-
- 
 
 function signToken(user) {
 
@@ -3390,121 +3386,186 @@ async function ensureRuntimeSchema() {
  
 
 async function ensureInitialUsers() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS system_migrations (
+      migration_key VARCHAR(140) PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS system_key VARCHAR(60);
+
+    CREATE UNIQUE INDEX IF NOT EXISTS users_system_key_unique
+      ON users (system_key)
+      WHERE system_key IS NOT NULL;
+  `);
+
   const defaultAccounts = [
     {
+      systemKey: "bookshare-admin",
       name: "Administrador BookShare",
       email: "admin@bookshare.com",
       password: "BookShare@2026",
-      role: "admin"
+      role: "admin",
+      jobTitle: "Administrador do sistema",
+      resetPasswordOnce: false
     },
     {
+      systemKey: "bookshare-librarian",
       name: "Bibliotecária",
       email: "biblioteca@bookshare.com",
       password: "Biblioteca@2026",
-      role: "librarian"
+      role: "librarian",
+      jobTitle: "Bibliotecária",
+      resetPasswordOnce: true
     }
   ];
 
   for (const account of defaultAccounts) {
     const email = account.email.trim().toLowerCase();
-    const defaultJobTitle = account.role === "admin"
-      ? "Administrador do sistema"
-      : "Bibliotecária";
 
-    const exactAccount = await pool.query(
-      `SELECT id, role, active, deleted_at, password_hash
+    const existingResult = await pool.query(
+      `SELECT
+         id,
+         email,
+         password_hash,
+         system_key
        FROM users
-       WHERE LOWER(BTRIM(email)) = $1
-       ORDER BY created_at ASC
+       WHERE system_key = $1
+          OR LOWER(BTRIM(email)) = $2
+       ORDER BY
+         CASE WHEN system_key = $1 THEN 0 ELSE 1 END,
+         created_at ASC
        LIMIT 1`,
-      [email]
+      [account.systemKey, email]
     );
 
-    if (exactAccount.rows[0]) {
-      const current = exactAccount.rows[0];
-      const hasValidBcryptHash = /^\$2[aby]\$\d{2}\$/.test(
-        String(current.password_hash || "")
-      );
-
-      // Preserva qualquer senha válida alterada pelo administrador.
-      // A senha padrão só é usada quando o hash está ausente ou corrompido.
-      const passwordHash = hasValidBcryptHash
-        ? current.password_hash
-        : await bcrypt.hash(account.password, 12);
+    if (!existingResult.rows[0]) {
+      const passwordHash = await bcrypt.hash(account.password, 12);
 
       await pool.query(
-        `UPDATE users
-         SET name = COALESCE(NULLIF(BTRIM(name), ''), $1),
-             email = $2,
-             role = $3::user_role,
-             active = TRUE,
-             deleted_at = NULL,
-             password_hash = $4,
-             job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $5),
-             updated_at = NOW()
-         WHERE id = $6`,
+        `INSERT INTO users (
+           name,
+           email,
+           password_hash,
+           role,
+           active,
+           job_title,
+           deleted_at,
+           system_key
+         )
+         VALUES (
+           $1,
+           $2,
+           $3,
+           $4::user_role,
+           TRUE,
+           $5,
+           NULL,
+           $6
+         )`,
         [
           account.name,
           email,
-          account.role,
           passwordHash,
-          defaultJobTitle,
-          current.id
+          account.role,
+          account.jobTitle,
+          account.systemKey
         ]
       );
 
-      console.log(`Conta inicial verificada: ${email} (${account.role}).`);
+      if (account.resetPasswordOnce) {
+        await pool.query(
+          `INSERT INTO system_migrations (migration_key)
+           VALUES ($1)
+           ON CONFLICT (migration_key) DO NOTHING`,
+          [`initial-password:${account.systemKey}:v1`]
+        );
+      }
+
+      console.log(`Conta inicial criada: ${email} (${account.role}).`);
       continue;
     }
 
-    // Se o administrador alterou o e-mail da conta pelo painel,
-    // não recria uma segunda conta padrão no próximo deploy.
-    const accountWithSameRole = await pool.query(
-      `SELECT id
-       FROM users
-       WHERE role = $1::user_role
-         AND active = TRUE
-         AND deleted_at IS NULL
-       ORDER BY created_at ASC
-       LIMIT 1`,
-      [account.role]
+    const current = existingResult.rows[0];
+    let passwordHash = current.password_hash;
+
+    const validBcryptHash = /^\$2[aby]\$\d{2}\$/.test(
+      String(current.password_hash || "")
     );
 
-    if (accountWithSameRole.rows[0]) {
-      console.log(
-        `Já existe uma conta ativa do perfil ${account.role}; ` +
-        `a conta padrão ${email} não foi recriada.`
-      );
-      continue;
+    if (!validBcryptHash) {
+      passwordHash = await bcrypt.hash(account.password, 12);
     }
 
-    const passwordHash = await bcrypt.hash(account.password, 12);
+    if (account.resetPasswordOnce) {
+      const migrationKey = `initial-password:${account.systemKey}:v1`;
+
+      const migrationResult = await pool.query(
+        `SELECT 1
+         FROM system_migrations
+         WHERE migration_key = $1
+         LIMIT 1`,
+        [migrationKey]
+      );
+
+      if (!migrationResult.rows[0]) {
+        const defaultPasswordAlreadyWorks = await verifyPassword(
+          account.password,
+          current.password_hash
+        );
+
+        if (!defaultPasswordAlreadyWorks) {
+          passwordHash = await bcrypt.hash(account.password, 12);
+          console.log(`Senha inicial restaurada uma única vez para ${email}.`);
+        }
+
+        await pool.query(
+          `INSERT INTO system_migrations (migration_key)
+           VALUES ($1)
+           ON CONFLICT (migration_key) DO NOTHING`,
+          [migrationKey]
+        );
+      }
+    }
 
     await pool.query(
-      `INSERT INTO users (
-         name,
-         email,
-         password_hash,
-         role,
-         active,
-         job_title,
-         deleted_at
-       )
-       VALUES ($1, $2, $3, $4::user_role, TRUE, $5, NULL)`,
+      `UPDATE users
+       SET name = COALESCE(NULLIF(BTRIM(name), ''), $1),
+           role = $2::user_role,
+           active = TRUE,
+           deleted_at = NULL,
+           password_hash = $3,
+           job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $4),
+           system_key = $5,
+           updated_at = NOW()
+       WHERE id = $6`,
       [
         account.name,
-        email,
-        passwordHash,
         account.role,
-        defaultJobTitle
+        passwordHash,
+        account.jobTitle,
+        account.systemKey,
+        current.id
       ]
     );
 
-    console.log(`Conta inicial criada: ${email} (${account.role}).`);
+    await pool.query(
+      `UPDATE users
+       SET system_key = NULL,
+           updated_at = NOW()
+       WHERE id <> $1
+         AND system_key = $2`,
+      [current.id, account.systemKey]
+    );
+
+    console.log(`Conta inicial verificada: ${current.email} (${account.role}).`);
   }
 }
 
 async function findUserForLogin(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+
   const result = await pool.query(
     `SELECT
        u.id,
@@ -3519,13 +3580,26 @@ async function findUserForLogin(email) {
        u.job_title,
        u.school_id,
        u.last_login_at,
+       u.system_key,
        s.name AS school_name
      FROM users u
      LEFT JOIN schools s ON s.id = u.school_id
      WHERE LOWER(BTRIM(u.email)) = $1
-     ORDER BY u.created_at ASC
+     ORDER BY
+       CASE WHEN LOWER(u.email) = $1 THEN 0 ELSE 1 END,
+       CASE
+         WHEN $1 = 'biblioteca@bookshare.com'
+          AND u.system_key = 'bookshare-librarian' THEN 0
+         WHEN $1 = 'admin@bookshare.com'
+          AND u.system_key = 'bookshare-admin' THEN 0
+         ELSE 1
+       END,
+       u.active DESC,
+       CASE WHEN u.deleted_at IS NULL THEN 0 ELSE 1 END,
+       u.updated_at DESC,
+       u.created_at DESC
      LIMIT 1`,
-    [email]
+    [normalizedEmail]
   );
 
   return result.rows[0] || null;
@@ -4781,7 +4855,20 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
 
   const passwordMatches = await verifyPassword(password, user.password_hash);
 
-  if (!passwordMatches) throw httpError(401, "E-mail ou senha incorretos.");
+  if (!passwordMatches) {
+    console.warn("Falha de login", {
+      email,
+      userId: user.id,
+      storedEmail: user.email,
+      role: user.role,
+      active: user.active,
+      deleted: Boolean(user.deleted_at),
+      receivedPasswordLength: password.length,
+      trimmedPasswordLength: password.trim().length
+    });
+
+    throw httpError(401, "E-mail ou senha incorretos.");
+  }
 
  
 
