@@ -3304,6 +3304,10 @@ async function ensureRuntimeSchema() {
 
     `ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
 
+    `ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ`,
+
+    `ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS system_key VARCHAR(60)`,
+
     `ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS photo_url TEXT`,
 
     `ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS school_id UUID`,
@@ -3406,6 +3410,9 @@ async function ensureInitialUsers() {
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS system_key VARCHAR(60);
 
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+
     CREATE UNIQUE INDEX IF NOT EXISTS users_system_key_unique
       ON users (system_key)
       WHERE system_key IS NOT NULL;
@@ -3418,8 +3425,7 @@ async function ensureInitialUsers() {
       email: "admin@bookshare.com",
       password: "BookShare@2026",
       role: "admin",
-      jobTitle: "Administrador do sistema",
-      resetPasswordOnce: false
+      jobTitle: "Administrador do sistema"
     },
     {
       systemKey: "bookshare-librarian",
@@ -3427,19 +3433,19 @@ async function ensureInitialUsers() {
       email: "biblioteca@bookshare.com",
       password: "Biblioteca@2026",
       role: "librarian",
-      jobTitle: "Bibliotecária",
-      resetPasswordOnce: true
+      jobTitle: "Bibliotecária"
     }
   ];
 
   for (const account of defaultAccounts) {
-    const email = account.email.trim().toLowerCase();
+    const email = normalizeEmail(account.email);
 
     const existingResult = await pool.query(
       `SELECT
          id,
          email,
          password_hash,
+         password_changed_at,
          system_key
        FROM users
        WHERE system_key = $1
@@ -3459,6 +3465,7 @@ async function ensureInitialUsers() {
            name,
            email,
            password_hash,
+           password_changed_at,
            role,
            active,
            job_title,
@@ -3469,6 +3476,7 @@ async function ensureInitialUsers() {
            $1,
            $2,
            $3,
+           NULL,
            $4::user_role,
            TRUE,
            $5,
@@ -3485,92 +3493,47 @@ async function ensureInitialUsers() {
         ]
       );
 
-      if (account.resetPasswordOnce) {
-        await pool.query(
-          `INSERT INTO system_migrations (migration_key)
-           VALUES ($1)
-           ON CONFLICT (migration_key) DO NOTHING`,
-          [`initial-password:${account.systemKey}:v1`]
-        );
-      }
-
       console.log(`Conta inicial criada: ${email} (${account.role}).`);
       continue;
     }
 
     const current = existingResult.rows[0];
-    let passwordHash = current.password_hash;
-
     const validBcryptHash = /^\$2[aby]\$\d{2}\$/.test(
       String(current.password_hash || "")
     );
-
-    if (!validBcryptHash) {
-      passwordHash = await bcrypt.hash(account.password, 12);
-    }
-
-    if (account.resetPasswordOnce) {
-      const migrationKey = `initial-password:${account.systemKey}:v1`;
-
-      const migrationResult = await pool.query(
-        `SELECT 1
-         FROM system_migrations
-         WHERE migration_key = $1
-         LIMIT 1`,
-        [migrationKey]
-      );
-
-      if (!migrationResult.rows[0]) {
-        const defaultPasswordAlreadyWorks = await verifyPassword(
-          account.password,
-          current.password_hash
-        );
-
-        if (!defaultPasswordAlreadyWorks) {
-          passwordHash = await bcrypt.hash(account.password, 12);
-          console.log(`Senha inicial restaurada uma única vez para ${email}.`);
-        }
-
-        await pool.query(
-          `INSERT INTO system_migrations (migration_key)
-           VALUES ($1)
-           ON CONFLICT (migration_key) DO NOTHING`,
-          [migrationKey]
-        );
-      }
-    }
+    const passwordHash = validBcryptHash
+      ? current.password_hash
+      : await bcrypt.hash(account.password, 12);
 
     await pool.query(
       `UPDATE users
        SET name = COALESCE(NULLIF(BTRIM(name), ''), $1),
-           role = $2::user_role,
+           email = $2,
+           role = $3::user_role,
            active = TRUE,
            deleted_at = NULL,
-           password_hash = $3,
-           job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $4),
-           system_key = $5,
+           password_hash = $4,
+           password_changed_at = CASE
+             WHEN $5::boolean = TRUE THEN NULL
+             ELSE password_changed_at
+           END,
+           job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $6),
+           system_key = $7,
            updated_at = NOW()
-       WHERE id = $6`,
+       WHERE id = $8`,
       [
         account.name,
+        email,
         account.role,
         passwordHash,
+        !validBcryptHash,
         account.jobTitle,
         account.systemKey,
         current.id
       ]
     );
 
-    await pool.query(
-      `UPDATE users
-       SET system_key = NULL,
-           updated_at = NOW()
-       WHERE id <> $1
-         AND system_key = $2`,
-      [current.id, account.systemKey]
-    );
-
-    console.log(`Conta inicial verificada: ${current.email} (${account.role}).`);
+    console.log(`Conta inicial verificada: ${email} (${account.role}).`);
   }
 }
 
@@ -3583,6 +3546,7 @@ async function findUserForLogin(email) {
       u.name,
       u.email,
       u.password_hash,
+      u.password_changed_at,
       u.role,
       u.active,
       u.deleted_at,
@@ -4902,7 +4866,41 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
 
  
 
-  const passwordMatches = await verifyPassword(password, user.password_hash);
+  let passwordMatches = await verifyPassword(password, user.password_hash);
+
+  const defaultPasswords = {
+    "admin@bookshare.com": "BookShare@2026",
+    "biblioteca@bookshare.com": "Biblioteca@2026"
+  };
+
+  const defaultPassword = defaultPasswords[email] || null;
+  const normalizedReceivedPassword = String(password)
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ")
+    .trim();
+
+  if (
+    !passwordMatches &&
+    defaultPassword &&
+    !user.password_changed_at &&
+    normalizedReceivedPassword === defaultPassword
+  ) {
+    const repairedHash = await bcrypt.hash(defaultPassword, 12);
+
+    await pool.query(
+      `UPDATE users
+       SET password_hash = $1,
+           active = TRUE,
+           deleted_at = NULL,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [repairedHash, user.id]
+    );
+
+    passwordMatches = true;
+    console.log(`Hash da conta inicial reparado durante o login: ${email}.`);
+  }
 
   if (!passwordMatches) {
     console.warn("Falha de login", {
@@ -4912,8 +4910,9 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
       role: user.role,
       active: user.active,
       deleted: Boolean(user.deleted_at),
+      passwordChanged: Boolean(user.password_changed_at),
       receivedPasswordLength: password.length,
-      trimmedPasswordLength: password.trim().length
+      trimmedPasswordLength: normalizedReceivedPassword.length
     });
 
     throw httpError(401, "E-mail ou senha incorretos.");
@@ -5083,7 +5082,9 @@ app.put("/api/auth/change-password", authenticate, asyncRoute(async (req, res) =
 
       `UPDATE users
 
-       SET password_hash = $1, updated_at = NOW()
+       SET password_hash = $1,
+           password_changed_at = NOW(),
+           updated_at = NOW()
 
        WHERE id = $2`,
 
@@ -8641,9 +8642,9 @@ app.post("/api/users", authenticate, requireRole("admin"), asyncRoute(async (req
 
       INSERT INTO users
 
-        (name, email, password_hash, role, active, phone, job_title, school_id)
+        (name, email, password_hash, password_changed_at, role, active, phone, job_title, school_id)
 
-      VALUES ($1, $2, $3, $4::user_role, TRUE, $5, $6, $7)
+      VALUES ($1, $2, $3, NOW(), $4::user_role, TRUE, $5, $6, $7)
 
       RETURNING id, name, email, role, active, phone, job_title, school_id, created_at
 
@@ -8780,6 +8781,10 @@ app.put("/api/users/:id", authenticate, requireRole("admin"), asyncRoute(async (
           active = $7,
 
           password_hash = COALESCE($8, password_hash),
+          password_changed_at = CASE
+            WHEN $8::text IS NOT NULL THEN NOW()
+            ELSE password_changed_at
+          END,
 
           updated_at = NOW()
 
@@ -9008,6 +9013,7 @@ const adminResetUserPassword = asyncRoute(async (req, res) => {
       UPDATE users
 
       SET password_hash = $1,
+          password_changed_at = NOW(),
 
           active = TRUE,
 
