@@ -3467,13 +3467,17 @@ async function ensureInitialUsers() {
 
  
 
+      const defaultJobTitle = account.role === "admin"
+        ? "Administrador do sistema"
+        : "Bibliotecária";
+
       await pool.query(
 
         `UPDATE users
 
          SET name = COALESCE(NULLIF(name, ''), $1),
 
-             role = $2,
+             role = $2::user_role,
 
              active = TRUE,
 
@@ -3481,13 +3485,13 @@ async function ensureInitialUsers() {
 
              password_hash = $3,
 
-             job_title = COALESCE(job_title, CASE WHEN $2 = 'admin' THEN 'Administrador do sistema' ELSE 'Bibliotecária' END),
+             job_title = COALESCE(NULLIF(job_title, ''), $4),
 
              updated_at = NOW()
 
-         WHERE id = $4`,
+         WHERE id = $5`,
 
-        [account.name, account.role, passwordHash, current.id]
+        [account.name, account.role, passwordHash, defaultJobTitle, current.id]
 
       );
 
@@ -3503,7 +3507,7 @@ async function ensureInitialUsers() {
 
       `INSERT INTO users (name, email, password_hash, role, active)
 
-       VALUES ($1, $2, $3, $4, TRUE)`,
+       VALUES ($1, $2, $3, $4::user_role, TRUE)`,
 
       [account.name, account.email, passwordHash, account.role]
 
@@ -8527,7 +8531,7 @@ app.post("/api/users", authenticate, requireRole("admin"), asyncRoute(async (req
 
         (name, email, password_hash, role, active, phone, job_title, school_id)
 
-      VALUES ($1, $2, $3, $4, TRUE, $5, $6, $7)
+      VALUES ($1, $2, $3, $4::user_role, TRUE, $5, $6, $7)
 
       RETURNING id, name, email, role, active, phone, job_title, school_id, created_at
 
@@ -8653,7 +8657,7 @@ app.put("/api/users/:id", authenticate, requireRole("admin"), asyncRoute(async (
 
           email = $2,
 
-          role = $3,
+          role = $3::user_role,
 
           phone = $4,
 
