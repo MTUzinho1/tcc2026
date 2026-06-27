@@ -2917,14 +2917,25 @@ function cleanDate(value, fieldName, nullable = true) {
 
  
 
+function normalizeEmail(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function cleanEmail(value) {
+  const email = normalizeEmail(value);
 
-  const email = requiredText(value, "o e-mail", 180).toLowerCase();
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw httpError(400, "Informe um e-mail válido.");
+  if (!email) throw httpError(400, "Informe o e-mail.");
+  if (email.length > 180) throw httpError(400, "O e-mail informado é muito longo.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw httpError(400, "Informe um e-mail válido.");
+  }
 
   return email;
-
 }
 
 async function verifyPassword(password, passwordHash) {
@@ -3564,36 +3575,33 @@ async function ensureInitialUsers() {
 }
 
 async function findUserForLogin(email) {
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
-  const result = await pool.query(
-    `SELECT
-       u.id,
-       u.name,
-       u.email,
-       u.password_hash,
-       u.role,
-       u.active,
-       u.deleted_at,
-       u.avatar_url,
-       u.phone,
-       u.job_title,
-       u.school_id,
-       u.last_login_at,
-       u.system_key,
-       s.name AS school_name
-     FROM users u
-     LEFT JOIN schools s ON s.id = u.school_id
+  const baseSelect = `
+    SELECT
+      u.id,
+      u.name,
+      u.email,
+      u.password_hash,
+      u.role,
+      u.active,
+      u.deleted_at,
+      u.avatar_url,
+      u.phone,
+      u.job_title,
+      u.school_id,
+      u.last_login_at,
+      u.system_key,
+      s.name AS school_name
+    FROM users u
+    LEFT JOIN schools s ON s.id = u.school_id
+  `;
+
+  const exactResult = await pool.query(
+    `${baseSelect}
      WHERE LOWER(BTRIM(u.email)) = $1
      ORDER BY
-       CASE WHEN LOWER(u.email) = $1 THEN 0 ELSE 1 END,
-       CASE
-         WHEN $1 = 'biblioteca@bookshare.com'
-          AND u.system_key = 'bookshare-librarian' THEN 0
-         WHEN $1 = 'admin@bookshare.com'
-          AND u.system_key = 'bookshare-admin' THEN 0
-         ELSE 1
-       END,
+       CASE WHEN LOWER(BTRIM(u.email)) = $1 THEN 0 ELSE 1 END,
        u.active DESC,
        CASE WHEN u.deleted_at IS NULL THEN 0 ELSE 1 END,
        u.updated_at DESC,
@@ -3602,7 +3610,40 @@ async function findUserForLogin(email) {
     [normalizedEmail]
   );
 
-  return result.rows[0] || null;
+  if (exactResult.rows[0]) return exactResult.rows[0];
+
+  const officialAccounts = {
+    "admin@bookshare.com": {
+      systemKey: "bookshare-admin",
+      role: "admin"
+    },
+    "biblioteca@bookshare.com": {
+      systemKey: "bookshare-librarian",
+      role: "librarian"
+    }
+  };
+
+  const officialAccount = officialAccounts[normalizedEmail];
+
+  if (!officialAccount) return null;
+
+  const fallbackResult = await pool.query(
+    `${baseSelect}
+     WHERE u.system_key = $1
+        OR (
+          u.role = $2::user_role
+          AND u.active = TRUE
+          AND u.deleted_at IS NULL
+        )
+     ORDER BY
+       CASE WHEN u.system_key = $1 THEN 0 ELSE 1 END,
+       u.updated_at DESC,
+       u.created_at ASC
+     LIMIT 1`,
+    [officialAccount.systemKey, officialAccount.role]
+  );
+
+  return fallbackResult.rows[0] || null;
 }
 
 function isDataImage(value) {
@@ -4848,6 +4889,14 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
   }
 
   if (!user || !user.active || user.deleted_at) {
+    console.warn("Conta não localizada ou indisponível no login", {
+      normalizedEmail: email,
+      protectedInitialAccount: isProtectedInitialAccount,
+      userFound: Boolean(user),
+      active: user?.active ?? null,
+      deleted: Boolean(user?.deleted_at)
+    });
+
     throw httpError(401, "E-mail ou senha incorretos.");
   }
 
