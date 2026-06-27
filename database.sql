@@ -750,13 +750,26 @@ VALUES
   ('Dicionários e Referência')
 ON CONFLICT (name) DO NOTHING;
 
--- Contas iniciais para apresentação (troque as senhas depois do primeiro acesso).
+-- Contas iniciais para apresentação.
+-- Em uma instalação nova, cria as senhas abaixo.
+-- Se a conta já existir, preserva a senha alterada pelo administrador.
 INSERT INTO users (name, email, password_hash, role, active) VALUES
-  ('Administrador BookShare', 'admin@bookshare.com', crypt('BookShare@2026', gen_salt('bf', 12)), 'admin', TRUE),
-  ('Bibliotecária', 'biblioteca@bookshare.com', crypt('Biblioteca@2026', gen_salt('bf', 12)), 'librarian', TRUE)
+  (
+    'Administrador BookShare',
+    'admin@bookshare.com',
+    crypt('BookShare@2026', gen_salt('bf', 12)),
+    'admin'::user_role,
+    TRUE
+  ),
+  (
+    'Bibliotecária',
+    'biblioteca@bookshare.com',
+    crypt('Biblioteca@2026', gen_salt('bf', 12)),
+    'librarian'::user_role,
+    TRUE
+  )
 ON CONFLICT (email) DO UPDATE SET
   name = EXCLUDED.name,
-  password_hash = EXCLUDED.password_hash,
   role = EXCLUDED.role,
   active = TRUE,
   updated_at = NOW();
@@ -2073,6 +2086,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS school_id UUID;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(40);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(80);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS system_key VARCHAR(60);
+
+CREATE TABLE IF NOT EXISTS system_migrations (
+  migration_key VARCHAR(140) PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_system_key_unique
+  ON users (system_key)
+  WHERE system_key IS NOT NULL;
+
 ALTER TABLE students ADD COLUMN IF NOT EXISTS school_id UUID;
 ALTER TABLE classes ADD COLUMN IF NOT EXISTS school_id UUID;
 ALTER TABLE books ADD COLUMN IF NOT EXISTS school_id UUID;
@@ -2126,11 +2150,26 @@ SET school_id = (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1),
     updated_at = NOW()
 WHERE school_id IS NULL;
 
--- Garante que as duas contas de demonstração nunca sejam misturadas.
-UPDATE users SET role = 'admin', active = TRUE, deleted_at = NULL, updated_at = NOW()
-WHERE email = 'admin@bookshare.com';
-UPDATE users SET role = 'librarian', active = TRUE, deleted_at = NULL, updated_at = NOW()
-WHERE email = 'biblioteca@bookshare.com';
+-- Garante que as duas contas oficiais não sejam misturadas.
+UPDATE users
+SET email = LOWER(TRIM(email)),
+    role = 'admin'::user_role,
+    active = TRUE,
+    deleted_at = NULL,
+    system_key = 'bookshare-admin',
+    job_title = COALESCE(NULLIF(TRIM(job_title), ''), 'Administrador do sistema'),
+    updated_at = NOW()
+WHERE LOWER(TRIM(email)) = 'admin@bookshare.com';
+
+UPDATE users
+SET email = LOWER(TRIM(email)),
+    role = 'librarian'::user_role,
+    active = TRUE,
+    deleted_at = NULL,
+    system_key = 'bookshare-librarian',
+    job_title = COALESCE(NULLIF(TRIM(job_title), ''), 'Bibliotecária'),
+    updated_at = NOW()
+WHERE LOWER(TRIM(email)) = 'biblioteca@bookshare.com';
 
 -- Livro solicitado que não existia no catálogo original.
 INSERT INTO books (
