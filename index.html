@@ -1,460 +1,3324 @@
+
 <!DOCTYPE html>
-<html lang="pt-br">
+
+<html lang="pt-BR">
+
 <head>
-   <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>Minha Biblioteca - Sistema de Gestão</title>
-   <style>
-       :root {
-           --primary-color: #1d551d;
-           --accent-color: #0f6b23;
-           --success-color: #27ae60;
-           --warning-color: #e67e22;
-           --bg-color: #ecddd9;
-           --card-bg: #ffffff;
-       }
 
-       body {
-           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-           background-color: var(--bg-color);
-           margin: 0;
-           padding: 0;
-           overflow-x: hidden;
-       }
+  <meta charset="UTF-8">
 
-       /* --- Telas de Login e Cadastro --- */
-       #auth-container {
-           display: flex;
-           justify-content: center;
-           align-items: center;
-           height: 100vh;
-           background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-       }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-       .auth-card {
-           background: white;
-           padding: 40px;
-           border-radius: 12px;
-           box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-           width: 100%;
-           max-width: 400px;
-           text-align: center;
-       }
+  <meta name="theme-color" content="#173f3a">
 
-       .auth-card h2 { color: var(--primary-color); margin-bottom: 20px; }
-      
-       .form-group { margin-bottom: 15px; text-align: left; }
-       .form-group label { display: block; margin-bottom: 5px; color: #666; }
-      
-       input[type="text"], input[type="email"], input[type="password"], input[type="date"] {
-           width: 100%;
-           padding: 12px;
-           border: 1px solid #ddd;
-           border-radius: 8px;
-           box-sizing: border-box;
-       }
+  <meta name="description" content="BookShare — sistema completo de gestão para biblioteca escolar.">
 
-       .btn-main {
-           width: 100%;
-           padding: 12px;
-           background: var(--accent-color);
-           color: white;
-           border: none;
-           border-radius: 8px;
-           cursor: pointer;
-           font-weight: bold;
-           margin-top: 10px;
-       }
+  <title>BookShare | Gestão de Biblioteca Escolar</title>
 
-       .switch-auth {
-           margin-top: 15px;
-           font-size: 0.9rem;
-           color: #666;
-       }
+ 
 
-       .switch-auth span { color: var(--accent-color); cursor: pointer; text-decoration: underline; }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
 
-       /* --- Interface Principal --- */
-       #main-app { display: none; }
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-       nav {
-           background: var(--primary-color);
-           padding: 15px 50px;
-           display: flex;
-           justify-content: space-between;
-           align-items: center;
-           color: white;
-       }
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,600;7..72,700;7..72,800&display=swap" rel="stylesheet">
 
-       .nav-links span {
-           margin-left: 20px;
-           cursor: pointer;
-           font-weight: 500;
-       }
+  <link rel="stylesheet" href="style.css?v=36">
 
-       header {
-           text-align: center;
-           padding: 40px 0;
-           background: var(--primary-color);
-           color: white;
-       }
-
-       .search-container {
-           max-width: 600px;
-           margin: -25px auto 30px;
-           display: flex;
-           gap: 10px;
-       }
-
-       input#searchInput {
-           flex-grow: 1;
-           padding: 15px;
-           border: none;
-           border-radius: 25px;
-           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-       }
-
-       .book-grid {
-           display: grid;
-           grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-           gap: 25px;
-           max-width: 1200px;
-           margin: 0 auto;
-           padding: 20px;
-       }
-
-       .book-card {
-           background: var(--card-bg);
-           border-radius: 12px;
-           overflow: hidden;
-           transition: transform 0.3s ease;
-           box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-           display: flex;
-           flex-direction: column;
-       }
-
-       .book-card:hover { transform: translateY(-5px); }
-
-       .book-cover {
-           height: 300px;
-           background: #ddd;
-           background-size: cover;
-           background-position: center;
-       }
-
-       .book-info { padding: 20px; }
-       .book-title { font-size: 1.1rem; margin: 0 0 5px 0; color: var(--primary-color); }
-       .book-author { color: #666; font-size: 0.85rem; margin-bottom: 10px; }
-
-       .status-badge {
-           display: inline-block;
-           padding: 4px 10px;
-           border-radius: 12px;
-           font-size: 0.7rem;
-           font-weight: bold;
-           text-transform: uppercase;
-       }
-
-       .status-read { background: #d4edda; color: #155724; }
-       .status-reading { background: #fff3cd; color: #856404; }
-       .status-loaned { background: #f8d7da; color: #721c24; margin-bottom: 5px; }
-
-       .loan-date-info {
-           font-size: 0.75rem;
-           color: #777;
-           margin-top: 5px;
-           display: block;
-       }
-
-       .btn-loan {
-           margin-top: 15px;
-           padding: 8px;
-           background: var(--primary-color);
-           color: white;
-           border: none;
-           border-radius: 5px;
-           cursor: pointer;
-           width: 100%;
-       }
-
-       /* --- Modal de Empréstimo --- */
-       .modal {
-           display: none;
-           position: fixed;
-           top: 0; left: 0; width: 100%; height: 100%;
-           background: rgba(0,0,0,0.5);
-           justify-content: center;
-           align-items: center;
-           z-index: 1000;
-       }
-
-       .modal-content {
-           background: white;
-           padding: 30px;
-           border-radius: 10px;
-           width: 350px;
-           max-height: 90vh;
-           overflow-y: auto;
-       }
-
-       .hidden { display: none; }
-   </style>
 </head>
+
 <body>
 
-<div id="auth-container">
-   <div id="login-box" class="auth-card">
-       <h2>Login</h2>
-       <div class="form-group">
-           <label>E-mail</label>
-           <input type="email" placeholder="exemplo@email.com">
-       </div>
-       <div class="form-group">
-           <label>Senha</label>
-           <input type="password" placeholder="••••••••">
-       </div>
-       <button class="btn-main" onclick="showApp()">Entrar</button>
-       <p class="switch-auth">Não tem conta? <span onclick="toggleAuth()">Cadastre-se</span></p>
-   </div>
+  <div id="app-loading" class="app-loading">
 
-   <div id="register-box" class="auth-card hidden">
-       <h2>Criar Conta</h2>
-       <div class="form-group">
-           <label>Nome Completo</label>
-           <input type="text" placeholder="Seu Nome">
-       </div>
-       <div class="form-group">
-           <label>E-mail</label>
-           <input type="email" placeholder="seu@email.com">
-       </div>
-       <div class="form-group">
-           <label>Senha</label>
-           <input type="password" placeholder="Mínimo 6 dígitos">
-       </div>
-       <button class="btn-main" onclick="showApp()">Cadastrar</button>
-       <p class="switch-auth">Já tem conta? <span onclick="toggleAuth()">Fazer Login</span></p>
-   </div>
-</div>
+    <div class="loading-book" aria-hidden="true">
 
-<div id="main-app">
-   <nav>
-       <div class="logo">📚 EstanteDigital</div>
-       <div class="nav-links">
-           <span onclick="showPage('shelf')">Minha Estante</span>
-           <span onclick="showPage('loans')">Empréstimos</span>
-           <span onclick="logout()" style="color: #ff7675;">Sair</span>
-       </div>
-   </nav>
+      <span></span>
 
-   <header>
-       <h1>Minha Estante Digital</h1>
-       <p id="header-subtitle">Organize sua leitura de forma inteligente</p>
-   </header>
+      <span></span>
 
-   <div class="search-container" id="searchBar">
-       <input type="text" id="searchInput" placeholder="Pesquisar por título ou autor..." onkeyup="filterBooks()">
-   </div>
+      <span></span>
 
-   <main class="book-grid" id="bookGrid"></main>
+    </div>
 
-   <main class="book-grid hidden" id="loanGrid">
-       <h2 style="grid-column: 1/-1; text-align: center; color: #666;">Nenhum empréstimo ativo no momento.</h2>
-   </main>
-</div>
+    <strong>BookShare</strong>
 
-<div id="loanModal" class="modal">
-   <div class="modal-content">
-       <h3>Registrar Empréstimo</h3>
-       <p id="modalBookTitle" style="font-weight: bold; color: var(--primary-color);"></p>
-       
-       <div class="form-group">
-           <label>Nome do Amigo/Pessoa</label>
-           <input type="text" id="friendName" placeholder="Quem pegou o livro?">
-       </div>
+    <p>Preparando a biblioteca...</p>
 
-       <div class="form-group">
-           <label>Data de Empréstimo</label>
-           <input type="date" id="loanDate">
-       </div>
+  </div>
 
-       <div class="form-group">
-           <label>Previsão de Devolução</label>
-           <input type="date" id="returnDate">
-       </div>
+ 
 
-       <button class="btn-main" onclick="confirmLoan()">Confirmar Empréstimo</button>
-       <button class="btn-main" style="background: #ccc; color: #333;" onclick="closeModal()">Cancelar</button>
-   </div>
-</div>
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
-<script>
-   // DADOS DOS LIVROS
-   let books = [
-       { id: 1, title: "Igreja Medieval", author: "Leandro Duarte Rust", status: "Disponível", cover: "https://m.media-amazon.com/images/I/817-fN7-4jL._AC_UF1000,1000_QL80_.jpg", loanedTo: null, loanDate: null, returnDate: null },
-       { id: 2, title: "Minha vida secreta na Máfia", author: "Joseph D. Pistone", status: "Disponível", cover: "https://static.estantevirtual.com.br/book/00/1D1-4881-000/1D1-4881-000_detail1.jpg", loanedTo: null, loanDate: null, returnDate: null },
-       { id: 3, title: "Mestres do mistério", author: "Edgar Allan Poe", status: "Disponível", cover: "https://martinsfontespaulista.vteximg.com.br/arquivos/ids/1458823-292-292/986695.jpg", loanedTo: null, loanDate: null, returnDate: null },
-       { id: 4, title: "As Crônicas de Narnia", author: "C.S Lewis", status: "Disponível", cover: "https://livrista.com.br/thumb/l600/capas/2010/162/177271.jpg", loanedTo: null, loanDate: null, returnDate: null },
-       { id: 5, title: "O destino das terras altas", author: "Hannah Howell", status: "Disponível", cover: "https://http2.mlstatic.com/D_Q_NP_666618-MLA93819164369_092025-O.webp", loanedTo: null, loanDate: null, returnDate: null },
-       { id: 6, title: "O nome do vento", author: "Patrick Rothfuss", status: "Disponível", cover: "https://i.zst.com.br/thumbs/12/2e/33/37586679.jpg", loanedTo: null, loanDate: null, returnDate: null }
-   ];
+ 
 
-   let selectedBookId = null;
+  <section id="auth-view" class="auth-view is-hidden">
 
-   // --- FUNÇÕES DE NAVEGAÇÃO E AUTH ---
-   function toggleAuth() {
-       document.getElementById('login-box').classList.toggle('hidden');
-       document.getElementById('register-box').classList.toggle('hidden');
-   }
+    <div class="auth-showcase">
 
-   function showApp() {
-       document.getElementById('auth-container').style.display = 'none';
-       document.getElementById('main-app').style.display = 'block';
-       renderBooks();
-   }
+      <header class="auth-showcase__header">
 
-   function logout() {
-       location.reload();
-   }
+        <a class="brand brand--light" href="#" aria-label="BookShare">
 
-   function showPage(page) {
-       const shelf = document.getElementById('bookGrid');
-       const loans = document.getElementById('loanGrid');
-       const search = document.getElementById('searchBar');
-       const subtitle = document.getElementById('header-subtitle');
+          <span class="brand__mark">BS</span>
 
-       if(page === 'shelf') {
-           shelf.classList.remove('hidden');
-           search.classList.remove('hidden');
-           loans.classList.add('hidden');
-           subtitle.innerText = "Organize sua leitura de forma inteligente";
-       } else {
-           shelf.classList.add('hidden');
-           search.classList.add('hidden');
-           loans.classList.remove('hidden');
-           subtitle.innerText = "Livros que estão com seus amigos";
-           renderLoans();
-       }
-   }
+          <span class="brand__copy">
 
-   // --- FUNÇÕES DA BIBLIOTECA ---
-   function formatDate(dateStr) {
-       if(!dateStr) return "";
-       const [year, month, day] = dateStr.split('-');
-       return `${day}/${month}/${year}`;
-   }
+            <strong>BookShare</strong>
 
-   function renderBooks() {
-       const grid = document.getElementById('bookGrid');
-       grid.innerHTML = '';
+            <small>Biblioteca escolar</small>
 
-       books.forEach(book => {
-           const isLoaned = book.loanedTo !== null;
-           const statusClass = isLoaned ? 'status-loaned' : (book.status === 'Lido' ? 'status-read' : 'status-reading');
-           const statusText = isLoaned ? `Emprestado para: ${book.loanedTo}` : book.status;
+          </span>
 
-           let dateInfo = "";
-           if(isLoaned && book.returnDate) {
-               dateInfo = `<span class="loan-date-info">Devolução: ${formatDate(book.returnDate)}</span>`;
-           }
+        </a>
 
-           grid.innerHTML += `
-               <article class="book-card" data-title="${book.title}" data-author="${book.author}">
-                   <div class="book-cover" style="background-image: url('${book.cover}')"></div>
-                   <div class="book-info">
-                       <h3 class="book-title">${book.title}</h3>
-                       <p class="book-author">${book.author}</p>
-                       <span class="status-badge ${statusClass}">${statusText}</span>
-                       ${dateInfo}
-                       ${!isLoaned ? `<button class="btn-loan" onclick="openLoanModal(${book.id})">Emprestar</button>` :
-                       `<button class="btn-loan" style="background:#27ae60" onclick="returnBook(${book.id})">Marcar como Devolvido</button>`}
-                   </div>
-               </article>
-           `;
-       });
-   }
+      </header>
 
-   function renderLoans() {
-       const grid = document.getElementById('loanGrid');
-       const loanedBooks = books.filter(b => b.loanedTo !== null);
-      
-       if(loanedBooks.length === 0) {
-           grid.innerHTML = '<h2 style="grid-column: 1/-1; text-align: center; color: #999; padding: 40px;">Nenhum livro emprestado no momento.</h2>';
-           return;
-       }
+ 
 
-       grid.innerHTML = '';
-       loanedBooks.forEach(book => {
-           grid.innerHTML += `
-               <div class="book-card">
-                   <div class="book-info">
-                       <h3 class="book-title">${book.title}</h3>
-                       <p><strong>Com:</strong> ${book.loanedTo}</p>
-                       <p style="font-size:0.8rem"><strong>Emprestado em:</strong> ${formatDate(book.loanDate)}</p>
-                       <p style="font-size:0.8rem; color: #c0392b"><strong>Devolver em:</strong> ${formatDate(book.returnDate)}</p>
-                       <button class="btn-loan" onclick="returnBook(${book.id})">Receber de Volta</button>
-                   </div>
-               </div>
-           `;
-       });
-   }
+      <div class="auth-showcase__content">
 
-   // --- LÓGICA DE EMPRÉSTIMO ---
-   function openLoanModal(id) {
-       selectedBookId = id;
-       const book = books.find(b => b.id === id);
-       document.getElementById('modalBookTitle').innerText = book.title;
-       
-       // Preencher data de hoje automaticamente
-       const today = new Date().toISOString().split('T')[0];
-       document.getElementById('loanDate').value = today;
-       
-       document.getElementById('loanModal').style.display = 'flex';
-   }
+        <p class="eyebrow eyebrow--light">Biblioteca escolar, sem burocracia</p>
 
-   function closeModal() {
-       document.getElementById('loanModal').style.display = 'none';
-       document.getElementById('friendName').value = '';
-       document.getElementById('loanDate').value = '';
-       document.getElementById('returnDate').value = '';
-   }
+        <h1>Clareza para cuidar de cada livro e de cada aluno.</h1>
 
-   function confirmLoan() {
-       const friend = document.getElementById('friendName').value;
-       const lDate = document.getElementById('loanDate').value;
-       const rDate = document.getElementById('returnDate').value;
+        <p class="auth-showcase__lead">
 
-       if(!friend) return alert("Digite o nome de quem está pegando o livro!");
-       if(!lDate || !rDate) return alert("Preencha as datas de empréstimo e devolução!");
+          Um espaço de trabalho direto, acolhedor e confiável para registrar empréstimos,
 
-       const index = books.findIndex(b => b.id === selectedBookId);
-       books[index].loanedTo = friend;
-       books[index].loanDate = lDate;
-       books[index].returnDate = rDate;
-      
-       closeModal();
-       renderBooks();
-   }
+          acompanhar prazos e manter o acervo sempre organizado.
 
-   function returnBook(id) {
-       const index = books.findIndex(b => b.id === id);
-       books[index].loanedTo = null;
-       books[index].loanDate = null;
-       books[index].returnDate = null;
-       renderBooks();
-       renderLoans();
-   }
+        </p>
 
-   function filterBooks() {
-       const input = document.getElementById('searchInput').value.toLowerCase();
-       const cards = document.getElementsByClassName('book-card');
+ 
 
-       for (let card of cards) {
-           const title = card.getAttribute('data-title').toLowerCase();
-           const author = card.getAttribute('data-author').toLowerCase();
-           card.style.display = (title.includes(input) || author.includes(input)) ? "" : "none";
-       }
-   }
-</script>
+        <div class="auth-library-panel" aria-label="Visão geral do BookShare">
+
+          <div class="auth-library-panel__visual" aria-hidden="true">
+
+            <svg viewBox="0 0 420 250" role="img">
+
+              <rect x="18" y="18" width="384" height="214" rx="25" fill="#173f3a"/>
+
+              <circle cx="344" cy="68" r="34" fill="#f1cf8e" opacity=".95"/>
+
+              <path d="M53 176h314" stroke="#d8b071" stroke-width="12" stroke-linecap="round"/>
+
+              <rect x="72" y="78" width="42" height="91" rx="7" fill="#e7a25d"/>
+
+              <rect x="120" y="61" width="38" height="108" rx="7" fill="#79b9aa"/>
+
+              <rect x="164" y="88" width="32" height="81" rx="7" fill="#efcf89"/>
+
+              <rect x="202" y="70" width="44" height="99" rx="7" fill="#9dbedb"/>
+
+              <rect x="252" y="91" width="35" height="78" rx="7" fill="#d697aa"/>
+
+              <path d="M289 115c17-12 31-10 41 0v52c-13-8-27-9-41-4v-48Zm82 0c-17-12-31-10-41 0v52c13-8 27-9 41-4v-48Z" fill="#f8f5ec" stroke="#f8f5ec" stroke-width="3" stroke-linejoin="round"/>
+
+              <path d="M330 115v52" stroke="#173f3a" stroke-width="3" stroke-linecap="round"/>
+
+            </svg>
+
+          </div>
+
+          <div class="auth-library-panel__copy">
+
+            <span>ROTINA MAIS LEVE</span>
+
+            <strong>Menos burocracia. Mais tempo para cuidar da biblioteca.</strong>
+
+            <p>Empréstimos, devoluções e organização do acervo em poucos cliques — pensado para facilitar o trabalho das equipes da rede pública.</p>
+
+          </div>
+
+        </div>
+
+ 
+
+<div class="auth-benefits">
+
+          <article>
+
+            <span class="auth-benefits__icon" aria-hidden="true">
+
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5h10a3 3 0 0 1 3 3V18H7a3 3 0 0 0-3 3V6.5Z"/><path d="M17 9.5h1a2 2 0 0 1 2 2V18h-3"/><path d="M7 10h6M7 13h5"/></svg>
+
+            </span>
+
+            <div>
+
+              <strong>Empréstimos sem confusão</strong>
+
+              <p>O sistema escolhe o exemplar disponível e atualiza o acervo.</p>
+
+            </div>
+
+          </article>
+
+          <article>
+
+            <span class="auth-benefits__icon" aria-hidden="true">
+
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/><path d="M18.5 5.5 20 4"/></svg>
+
+            </span>
+
+            <div>
+
+              <strong>Atrasos visíveis</strong>
+
+              <p>Acompanhe dias de atraso, contatos e histórico de cobrança.</p>
+
+            </div>
+
+          </article>
+
+          <article>
+
+            <span class="auth-benefits__icon" aria-hidden="true">
+
+              <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="12" height="14" rx="2"/><rect x="17" y="8" width="4" height="8" rx="1"/><path d="M7 16h4M6 9h6"/></svg>
+
+            </span>
+
+            <div>
+
+              <strong>Funciona em qualquer tela</strong>
+
+              <p>Computador, tablet e celular com a mesma organização.</p>
+
+            </div>
+
+          </article>
+
+        </div>
+
+      </div>
+
+ 
+
+      <footer class="auth-showcase__footer">
+
+        <span>BookShare © 2026</span>
+
+        <span>Organização que acompanha cada história</span>
+
+      </footer>
+
+    </div>
+
+ 
+
+    <div class="auth-access">
+
+      <form id="login-form" class="login-card" novalidate>
+
+        <div class="login-card__mobile-brand">
+
+          <span class="brand__mark">BS</span>
+
+          <div>
+
+            <strong>BookShare</strong>
+
+            <small>Gestão de Biblioteca</small>
+
+          </div>
+
+        </div>
+
+ 
+
+        <div class="login-card__heading">
+
+          <p class="eyebrow">Acesso autorizado</p>
+
+          <h2>Bem-vinda de volta</h2>
+
+          <p>Entre com a conta criada pelo administrador.</p>
+
+        </div>
+
+ 
+
+        <label class="field">
+
+          <span class="field__label">E-mail</span>
+
+          <span class="input-shell">
+
+            <span class="input-shell__icon">@</span>
+
+            <input
+
+              id="login-email"
+
+              name="email"
+
+              type="email"
+
+              autocomplete="username"
+
+              placeholder="biblioteca@escola.com"
+
+              required
+
+            >
+
+          </span>
+
+          <small class="field__error"></small>
+
+        </label>
+
+ 
+
+        <label class="field">
+
+          <span class="field__label">Senha</span>
+
+          <span class="input-shell">
+
+            <span class="input-shell__icon">●</span>
+
+            <input
+
+              id="login-password"
+
+              name="password"
+
+              type="password"
+
+              autocomplete="current-password"
+
+              placeholder="Digite sua senha"
+
+              minlength="6"
+
+              required
+
+            >
+
+            <button id="toggle-password" class="input-shell__action" type="button" aria-label="Mostrar ou ocultar senha">Mostrar</button>
+
+          </span>
+
+          <small class="field__error"></small>
+
+        </label>
+
+ 
+
+        <button id="login-submit" class="button button--primary button--large button--block" type="submit">
+
+          <span>Entrar no BookShare</span>
+
+          <span aria-hidden="true">→</span>
+
+        </button>
+
+ 
+
+        <div class="login-help">
+
+          <span>Primeiro acesso ou esqueceu a senha?</span>
+
+          <p>Solicite ao administrador da escola a criação ou redefinição da conta.</p>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </section>
+
+ 
+
+  <div id="app-view" class="app-shell is-hidden">
+
+    <aside id="sidebar" class="sidebar">
+
+      <div class="sidebar__header">
+
+        <a class="brand brand--light" href="#dashboard" data-route="dashboard">
+
+          <span class="brand__mark">BS</span>
+
+          <span class="brand__copy">
+
+            <strong>BookShare</strong>
+
+            <small id="sidebar-school-name">Biblioteca Escolar</small>
+
+          </span>
+
+        </a>
+
+        <button id="sidebar-close" class="icon-button sidebar__close" type="button" aria-label="Fechar menu">×</button>
+
+      </div>
+
+ 
+
+      <div class="sidebar__quick">
+
+        <button class="sidebar-quick-button librarian-only-nav" data-open-modal="loan-modal" type="button">
+
+          <span>＋</span>
+
+          Registrar empréstimo
+
+        </button>
+
+        <button class="sidebar-quick-button admin-only-nav" data-open-modal="user-modal" type="button">
+
+          <span>＋</span>
+
+          Cadastrar conta
+
+        </button>
+
+      </div>
+
+ 
+
+      <nav class="sidebar__nav" aria-label="Navegação principal">
+
+        <p class="nav-group-label">Visão geral</p>
+
+        <button class="nav-item is-active" data-route="dashboard" type="button">
+
+          <span class="nav-item__icon">⌂</span>
+
+          <span>Início</span>
+
+        </button>
+
+ 
+
+        <div id="librarian-navigation" class="librarian-only-nav">
+
+          <p class="nav-group-label">Atendimento</p>
+
+          <button class="nav-item" data-route="atendimento" type="button">
+
+            <span class="nav-item__icon">⌁</span>
+
+            <span>Balcão rápido</span>
+
+          </button>
+
+          <button class="nav-item" data-route="emprestimos" type="button">
+
+            <span class="nav-item__icon">⇄</span>
+
+            <span>Empréstimos</span>
+
+          </button>
+
+          <button class="nav-item" data-route="reservas" type="button">
+
+            <span class="nav-item__icon">◇</span>
+
+            <span>Reservas</span>
+
+            <span id="reservations-nav-count" class="nav-counter is-hidden">0</span>
+
+          </button>
+
+          <button class="nav-item" data-route="pendencias" type="button">
+
+            <span class="nav-item__icon">!</span>
+
+            <span>Pendências</span>
+
+            <span id="pending-nav-count" class="nav-counter is-hidden">0</span>
+
+          </button>
+
+ 
+
+          <p class="nav-group-label">Consulta</p>
+
+          <button class="nav-item" data-route="livros" type="button">
+
+            <span class="nav-item__icon">▤</span>
+
+            <span>Livros</span>
+
+          </button>
+
+          <button class="nav-item" data-route="alunos" type="button">
+
+            <span class="nav-item__icon">♙</span>
+
+            <span>Alunos</span>
+
+          </button>
+
+          <button class="nav-item" data-route="turmas" type="button">
+
+            <span class="nav-item__icon">▦</span>
+
+            <span>Turmas</span>
+
+          </button>
+
+        </div>
+
+ 
+
+        <div id="admin-navigation" class="admin-only-nav">
+
+          <p class="nav-group-label">Administração</p>
+
+          <button class="nav-item" data-route="usuarios" type="button">
+
+            <span class="nav-item__icon">♟</span>
+
+            <span>Contas da equipe</span>
+
+          </button>
+
+          <button class="nav-item" data-route="escolas" type="button">
+
+            <span class="nav-item__icon">⌂</span>
+
+            <span>Escolas</span>
+
+          </button>
+
+          <button class="nav-item" data-route="turmas" type="button">
+
+            <span class="nav-item__icon">▦</span>
+
+            <span>Turmas</span>
+
+          </button>
+
+          <button class="nav-item" data-route="alunos" type="button">
+
+            <span class="nav-item__icon">♙</span>
+
+            <span>Alunos</span>
+
+          </button>
+
+          <button class="nav-item" data-route="livros" type="button">
+
+            <span class="nav-item__icon">▤</span>
+
+            <span>Livros</span>
+
+          </button>
+
+          <button class="nav-item" data-route="exemplares" type="button">
+
+            <span class="nav-item__icon">▥</span>
+
+            <span>Exemplares</span>
+
+          </button>
+
+          <p class="nav-group-label">Controle</p>
+
+          <button class="nav-item" data-route="relatorios" type="button">
+
+            <span class="nav-item__icon">◫</span>
+
+            <span>Relatórios</span>
+
+          </button>
+
+          <button class="nav-item" data-route="atividades" type="button">
+
+            <span class="nav-item__icon">◷</span>
+
+            <span>Histórico</span>
+
+          </button>
+
+        </div>
+
+ 
+
+        <p class="nav-group-label">Conta</p>
+
+        <button class="nav-item" data-route="configuracoes" type="button">
+
+          <span class="nav-item__icon">⚙</span>
+
+          <span>Meu perfil</span>
+
+        </button>
+
+      </nav>
+
+ 
+
+      <div class="sidebar__profile">
+
+        <button id="sidebar-profile-button" class="profile-summary" type="button">
+
+          <span id="sidebar-avatar" class="avatar">BS</span>
+
+          <span class="profile-summary__copy">
+
+            <strong id="sidebar-user-name">Usuária</strong>
+
+            <small id="sidebar-user-role">Bibliotecária</small>
+
+          </span>
+
+          <span aria-hidden="true">⌄</span>
+
+        </button>
+
+        <button id="logout-button" class="icon-button icon-button--light" type="button" aria-label="Sair da conta">↪</button>
+
+      </div>
+
+    </aside>
+
+ 
+
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+ 
+
+    <main class="main-content">
+
+      <header class="topbar">
+
+        <div class="topbar__left">
+
+          <button id="menu-button" class="icon-button topbar__menu" type="button" aria-label="Abrir menu">☰</button>
+
+          <div class="page-heading">
+
+            <p id="page-eyebrow" class="eyebrow">Visão geral</p>
+
+            <h1 id="page-title">Dashboard</h1>
+
+          </div>
+
+        </div>
+
+ 
+
+        <div class="topbar__center">
+
+          <label class="global-search">
+
+            <span>⌕</span>
+
+            <input id="global-search-input" type="search" placeholder="Buscar livro, aluno, matrícula..." autocomplete="off">
+
+            <kbd>Ctrl K</kbd>
+
+          </label>
+
+          <div id="global-search-results" class="global-search-results is-hidden"></div>
+
+        </div>
+
+ 
+
+        <div class="topbar__right">
+
+          <button id="refresh-button" class="icon-button icon-button--bordered" type="button" aria-label="Atualizar dados">↻</button>
+
+          <button id="notifications-button" class="notification-button librarian-only" type="button" aria-label="Abrir notificações">
+
+            <span>♢</span>
+
+            <i id="notification-dot" class="notification-dot is-hidden"></i>
+
+          </button>
+
+          <button id="topbar-profile" class="topbar-profile" type="button">
+
+            <span id="topbar-avatar" class="avatar avatar--small">BS</span>
+
+            <span class="topbar-profile__copy">
+
+              <strong id="topbar-user-name">Usuária</strong>
+
+              <small id="topbar-user-role">Bibliotecária</small>
+
+            </span>
+
+            <span id="topbar-role-pill" class="topbar-role-pill">Balcão</span>
+
+            <span aria-hidden="true">⌄</span>
+
+          </button>
+
+        </div>
+
+      </header>
+
+ 
+
+      <aside id="notification-panel" class="notification-panel">
+
+        <div class="notification-panel__header">
+
+          <div>
+
+            <p class="eyebrow">Central</p>
+
+            <h2>Notificações</h2>
+
+          </div>
+
+          <button id="notification-panel-close" class="icon-button" type="button">×</button>
+
+        </div>
+
+        <div id="notification-list" class="notification-list"></div>
+
+      </aside>
+
+ 
+
+      <div class="workspace">
+
+        <section id="view-dashboard" class="page-view">
+
+          <section class="librarian-home librarian-only librarian-desk librarian-overview">
+
+            <div class="librarian-overview__header">
+
+              <div class="librarian-overview__copy">
+
+                <span class="librarian-overview__label">ATENDIMENTO DA BIBLIOTECA</span>
+
+                <h2 id="librarian-welcome-title">Bom dia, Bibliotecária!</h2>
+
+                <p id="librarian-welcome-message">Confira devoluções, reservas e pendências sem sair da tela inicial.</p>
+
+              </div>
+
+              <button id="librarian-profile-shortcut" class="librarian-overview__profile" type="button" aria-label="Abrir meu perfil">
+
+                <span id="librarian-hero-avatar" class="librarian-overview__avatar">B</span>
+
+                <span>
+
+                  <strong id="librarian-hero-name">Bibliotecária</strong>
+
+                  <small>Meu perfil</small>
+
+                </span>
+
+                <b>→</b>
+
+              </button>
+
+            </div>
+
+ 
+
+            <div class="librarian-overview__actions">
+
+              <button class="librarian-task librarian-task--primary" data-open-modal="loan-modal" type="button">
+
+                <span>＋</span><div><strong>Registrar empréstimo</strong><small>Escolher aluno, livro e prazo.</small></div>
+
+              </button>
+
+              <button class="librarian-task" data-open-modal="return-search-modal" type="button">
+
+                <span>↵</span><div><strong>Receber devolução</strong><small>Localizar por aluno ou exemplar.</small></div>
+
+              </button>
+
+              <button class="librarian-task" data-route="pendencias" type="button">
+
+                <span>!</span><div><strong>Ver pendências</strong><small>Atrasos e avisos de cobrança.</small></div>
+
+              </button>
+
+              <button class="librarian-task" data-route="livros" type="button">
+
+                <span>▤</span><div><strong>Consultar livros</strong><small>Disponibilidade e localização.</small></div>
+
+              </button>
+
+            </div>
+
+ 
+
+            <div class="librarian-overview__summary">
+
+              <button data-route="emprestimos" type="button"><span>Vencem hoje</span><strong id="librarian-due-today">0</strong></button>
+
+              <button data-route="pendencias" type="button"><span>Em atraso</span><strong id="librarian-overdue">0</strong></button>
+
+              <button data-route="reservas" type="button"><span>Reservas prontas</span><strong id="librarian-ready-reservations">0</strong></button>
+
+            </div>
+
+          </section>
+
+ 
+
+          <section class="admin-home admin-only admin-overview">
+
+            <header class="admin-overview__header">
+
+              <div class="admin-overview__identity">
+
+                <span id="admin-hero-avatar" class="admin-overview__avatar">A</span>
+
+                <div>
+
+                  <span class="admin-overview__eyebrow">ADMINISTRAÇÃO DO SISTEMA</span>
+
+                  <h2 id="admin-welcome-title">Painel administrativo</h2>
+
+                  <p id="admin-welcome-message">Gerencie contas, escolas, turmas, alunos, acervo e regras da biblioteca sem misturar tarefas administrativas com o atendimento do balcão.</p>
+
+                  <small><strong id="admin-hero-name">Administrador</strong> · <span id="admin-hero-email">admin@bookshare.com</span></small>
+
+                </div>
+
+              </div>
+
+              <button class="admin-overview__profile-button" data-route="configuracoes" type="button">
+
+                Meu perfil <b>→</b>
+
+              </button>
+
+            </header>
+
+ 
+
+            <div class="admin-overview__actions">
+
+              <button data-open-modal="user-modal" type="button"><span>＋</span><div><strong>Nova conta</strong><small>Criar acesso e vincular à escola.</small></div></button>
+
+              <button data-open-modal="student-modal" type="button"><span>♙</span><div><strong>Novo aluno</strong><small>Registrar matrícula e turma.</small></div></button>
+
+              <button data-open-modal="school-modal" type="button"><span>⌂</span><div><strong>Nova escola</strong><small>Cadastrar uma unidade escolar.</small></div></button>
+
+              <button data-open-modal="book-modal" type="button"><span>▤</span><div><strong>Novo livro</strong><small>Adicionar título e exemplares.</small></div></button>
+
+            </div>
+
+ 
+
+            <div class="admin-overview__stats">
+
+              <button data-route="usuarios" type="button"><span>Funcionárias</span><strong id="admin-total-staff">0</strong><small>Contas ativas</small></button>
+
+              <button data-route="alunos" type="button"><span>Alunos</span><strong id="admin-total-students">0</strong><small>Matrículas ativas</small></button>
+
+              <button data-route="escolas" type="button"><span>Escolas</span><strong id="admin-total-schools">0</strong><small>Unidades ativas</small></button>
+
+              <button data-route="livros" type="button"><span>Livros</span><strong id="admin-total-books">0</strong><small>Títulos no catálogo</small></button>
+
+            </div>
+
+          </section>
+
+ 
+
+          <div class="metric-grid librarian-only">
+
+            <article class="metric-card">
+
+              <div class="metric-card__top">
+
+                <span class="metric-card__icon metric-card__icon--green">▤</span>
+
+                <span class="trend trend--up">Acervo</span>
+
+              </div>
+
+              <strong id="metric-total-titles">0</strong>
+
+              <span>títulos cadastrados</span>
+
+              <small id="metric-total-copies">0 exemplares no total</small>
+
+            </article>
+
+ 
+
+            <article class="metric-card">
+
+              <div class="metric-card__top">
+
+                <span class="metric-card__icon metric-card__icon--blue">⇄</span>
+
+                <span id="metric-due-today-badge" class="trend">0 hoje</span>
+
+              </div>
+
+              <strong id="metric-active-loans">0</strong>
+
+              <span>empréstimos ativos</span>
+
+              <small id="metric-due-soon">0 vencendo em breve</small>
+
+            </article>
+
+ 
+
+            <article class="metric-card metric-card--attention">
+
+              <div class="metric-card__top">
+
+                <span class="metric-card__icon metric-card__icon--orange">!</span>
+
+                <span class="trend trend--danger">Atenção</span>
+
+              </div>
+
+              <strong id="metric-overdue-loans">0</strong>
+
+              <span>devoluções atrasadas</span>
+
+              <small id="metric-overdue-detail">Nenhuma cobrança necessária</small>
+
+            </article>
+
+ 
+
+            <article class="metric-card">
+
+              <div class="metric-card__top">
+
+                <span class="metric-card__icon metric-card__icon--purple">♙</span>
+
+                <span class="trend">Comunidade</span>
+
+              </div>
+
+              <strong id="metric-active-students">0</strong>
+
+              <span>alunos ativos</span>
+
+              <small id="metric-active-classes">0 turmas cadastradas</small>
+
+            </article>
+
+          </div>
+
+ 
+
+          <div id="dashboard-alerts" class="dashboard-alerts librarian-only"></div>
+
+ 
+
+          <div class="dashboard-layout librarian-only">
+
+            <article class="panel panel--chart admin-only">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Últimos 30 dias</p>
+
+                  <h2>Movimentação da biblioteca</h2>
+
+                </div>
+
+                <div class="chart-legend">
+
+                  <span><i class="chart-legend__loans"></i>Empréstimos</span>
+
+                  <span><i class="chart-legend__returns"></i>Devoluções</span>
+
+                </div>
+
+              </div>
+
+              <div class="chart-wrap">
+
+                <canvas id="circulation-chart" height="290"></canvas>
+
+              </div>
+
+            </article>
+
+ 
+
+            <article class="panel panel--attention-list">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Próximos prazos</p>
+
+                  <h2>Devoluções de hoje</h2>
+
+                </div>
+
+                <button class="text-button" data-route="emprestimos" type="button">Ver todos</button>
+
+              </div>
+
+              <div id="dashboard-due-list" class="compact-list"></div>
+
+            </article>
+
+ 
+
+            <article class="panel panel--popular admin-only">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Preferências</p>
+
+                  <h2>Mais procurados</h2>
+
+                </div>
+
+                <button class="text-button" data-route="relatorios" type="button">Relatório</button>
+
+              </div>
+
+              <div id="dashboard-popular-books" class="popular-list"></div>
+
+            </article>
+
+ 
+
+            <article class="panel panel--quick-actions">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Acesso rápido</p>
+
+                  <h2>O que deseja fazer?</h2>
+
+                </div>
+
+              </div>
+
+              <div class="quick-action-grid">
+
+                <button class="quick-action-card" data-open-modal="loan-modal" type="button">
+
+                  <span class="quick-action-card__icon">⇄</span>
+
+                  <strong>Novo empréstimo</strong>
+
+                  <small>Registrar retirada de livro</small>
+
+                </button>
+
+                <button class="quick-action-card" data-open-modal="return-search-modal" type="button">
+
+                  <span class="quick-action-card__icon">↩</span>
+
+                  <strong>Registrar devolução</strong>
+
+                  <small>Localizar empréstimo ativo</small>
+
+                </button>
+
+                <button class="quick-action-card admin-only" data-open-modal="book-modal" type="button">
+
+                  <span class="quick-action-card__icon">▤</span>
+
+                  <strong>Novo livro</strong>
+
+                  <small>Adicionar título e exemplares</small>
+
+                </button>
+
+                <button class="quick-action-card" data-route="alunos" type="button">
+
+                  <span class="quick-action-card__icon">♙</span>
+
+                  <strong>Consultar aluno</strong>
+
+                  <small>Ver perfil, turma e histórico</small>
+
+                </button>
+
+                <button class="quick-action-card" data-route="livros" type="button">
+
+                  <span class="quick-action-card__icon">▤</span>
+
+                  <strong>Pesquisar livro</strong>
+
+                  <small>Consultar disponibilidade e detalhes</small>
+
+                </button>
+
+              </div>
+
+            </article>
+
+          </div>
+
+        </section>
+
+ 
+
+        <section id="view-atendimento" class="page-view is-hidden">
+
+          <div class="service-hero">
+
+            <div>
+
+              <p class="eyebrow eyebrow--light">Balcão da biblioteca</p>
+
+              <h2>Atendimento rápido</h2>
+
+              <p>Localize o aluno, confira a situação e registre a movimentação sem trocar de tela.</p>
+
+            </div>
+
+            <div class="service-clock">
+
+              <span id="service-date">Hoje</span>
+
+              <strong id="service-time">00:00</strong>
+
+            </div>
+
+          </div>
+
+ 
+
+          <div class="service-grid">
+
+            <article class="panel service-panel service-panel--primary">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Etapa 1</p>
+
+                  <h2>Localizar aluno</h2>
+
+                </div>
+
+              </div>
+
+              <label class="search-field search-field--large">
+
+                <span>⌕</span>
+
+                <input id="service-student-search" type="search" placeholder="Nome ou matrícula do aluno">
+
+              </label>
+
+              <div id="service-student-results" class="service-results"></div>
+
+            </article>
+
+ 
+
+            <article class="panel service-panel">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Etapa 2</p>
+
+                  <h2>Situação do aluno</h2>
+
+                </div>
+
+              </div>
+
+              <div id="service-student-summary" class="service-empty">
+
+                <span>♙</span>
+
+                <h3>Nenhum aluno selecionado</h3>
+
+                <p>Busque o aluno para ver empréstimos, pendências e ações disponíveis.</p>
+
+              </div>
+
+            </article>
+
+          </div>
+
+        </section>
+
+ 
+
+        <section id="view-emprestimos" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div class="segmented-control" id="loan-status-tabs">
+
+              <button class="is-active" data-value="active" type="button">Ativos</button>
+
+              <button data-value="overdue" type="button">Atrasados</button>
+
+              <button data-value="returned" type="button">Devolvidos</button>
+
+              <button data-value="all" type="button">Todos</button>
+
+            </div>
+
+            <div class="page-actions__buttons">
+
+              <button class="button button--secondary" id="export-loans-button" type="button">↓ Exportar CSV</button>
+
+              <button class="button button--primary" data-open-modal="loan-modal" type="button">＋ Novo empréstimo</button>
+
+            </div>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="loan-search" type="search" placeholder="Aluno, matrícula, livro ou patrimônio">
+
+            </label>
+
+            <select id="loan-class-filter" class="select-control">
+
+              <option value="">Todas as turmas</option>
+
+            </select>
+
+            <label class="date-filter">
+
+              <span>De</span>
+
+              <input id="loan-start-date" type="date">
+
+            </label>
+
+            <label class="date-filter">
+
+              <span>Até</span>
+
+              <input id="loan-end-date" type="date">
+
+            </label>
+
+            <button id="loan-filter-clear" class="button button--ghost button--compact" type="button">Limpar</button>
+
+          </div>
+
+ 
+
+          <div id="loans-summary" class="inline-summary"></div>
+
+          <div id="loans-container" class="table-shell"></div>
+
+        </section>
+
+ 
+
+        <section id="view-reservas" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Reservas são registradas pela bibliotecária para organizar a fila de espera.</p>
+
+            </div>
+
+            <button class="button button--primary" data-open-modal="reservation-modal" type="button">＋ Nova reserva</button>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="reservation-search" type="search" placeholder="Buscar aluno, turma ou livro">
+
+            </label>
+
+            <select id="reservation-status-filter" class="select-control">
+
+              <option value="active">Reservas ativas</option>
+
+              <option value="ready">Disponíveis para retirada</option>
+
+              <option value="completed">Concluídas</option>
+
+              <option value="cancelled">Canceladas</option>
+
+              <option value="all">Todas</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="reservations-container" class="reservation-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-pendencias" class="page-view is-hidden">
+
+          <div class="pending-hero">
+
+            <div>
+
+              <p class="eyebrow eyebrow--light">Controle de atrasos</p>
+
+              <h2>Recupere livros sem perder o histórico</h2>
+
+              <p>Gere mensagens, registre contatos e acompanhe cada pendência até a devolução.</p>
+
+            </div>
+
+            <div class="pending-hero__metrics">
+
+              <div><strong id="pending-total-count">0</strong><span>pendências</span></div>
+
+              <div><strong id="pending-without-notice-count">0</strong><span>sem aviso</span></div>
+
+              <div><strong id="pending-critical-count">0</strong><span>há 15+ dias</span></div>
+
+            </div>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="pending-search" type="search" placeholder="Aluno, turma, matrícula ou livro">
+
+            </label>
+
+            <select id="pending-days-filter" class="select-control">
+
+              <option value="0">Qualquer atraso</option>
+
+              <option value="1">1 dia ou mais</option>
+
+              <option value="7">7 dias ou mais</option>
+
+              <option value="15">15 dias ou mais</option>
+
+              <option value="30">30 dias ou mais</option>
+
+            </select>
+
+            <select id="pending-contact-filter" class="select-control">
+
+              <option value="all">Todos os contatos</option>
+
+              <option value="not-contacted">Ainda não avisados</option>
+
+              <option value="contacted">Já avisados</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="pending-container" class="pending-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-livros" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div class="view-switcher" id="book-view-switcher">
+
+              <button class="is-active" data-view="grid" type="button">▦ Cards</button>
+
+              <button data-view="table" type="button">☷ Tabela</button>
+
+            </div>
+
+            <div class="page-actions__buttons">
+
+              <button class="button button--secondary" id="export-books-button" type="button">↓ Exportar acervo</button>
+
+              <button class="button button--secondary admin-only" id="sync-covers-button" type="button">↻ Atualizar capas</button>
+
+              <button class="button button--primary admin-only" data-open-modal="book-modal" type="button">＋ Cadastrar livro</button>
+
+            </div>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="book-search" type="search" placeholder="Título, autor, ISBN ou editora">
+
+            </label>
+
+            <select id="book-category-filter" class="select-control">
+
+              <option value="">Todas as categorias</option>
+
+            </select>
+
+            <select id="book-availability-filter" class="select-control">
+
+              <option value="">Qualquer disponibilidade</option>
+
+              <option value="available">Disponível</option>
+
+              <option value="unavailable">Indisponível</option>
+
+              <option value="attention">Com perdas ou danos</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="cover-sync-status" class="cover-sync-status admin-only is-hidden"></div>
+
+          <div id="books-summary" class="inline-summary"></div>
+
+          <div id="books-container" class="book-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-exemplares" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Cada exemplar possui patrimônio e situação independente.</p>
+
+            </div>
+
+            <button class="button button--primary" data-open-modal="copy-modal" type="button">＋ Adicionar exemplar</button>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="copy-search" type="search" placeholder="Patrimônio, título ou autor">
+
+            </label>
+
+            <select id="copy-status-filter" class="select-control">
+
+              <option value="">Todos os status</option>
+
+              <option value="available">Disponível</option>
+
+              <option value="loaned">Emprestado</option>
+
+              <option value="damaged">Danificado</option>
+
+              <option value="lost">Perdido</option>
+
+              <option value="maintenance">Manutenção</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="copies-container" class="table-shell"></div>
+
+        </section>
+
+ 
+
+        <section id="view-alunos" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Alunos são registros internos e não possuem acesso ao sistema.</p>
+
+            </div>
+
+            <div class="page-actions__buttons">
+
+              <button class="button button--secondary" id="export-students-button" type="button">↓ Exportar alunos</button>
+
+              <button class="button button--primary" data-open-modal="student-modal" type="button">＋ Cadastrar aluno</button>
+
+            </div>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="student-search" type="search" placeholder="Nome, matrícula ou contato">
+
+            </label>
+
+            <select id="student-class-filter" class="select-control">
+
+              <option value="">Todas as turmas</option>
+
+            </select>
+
+            <select id="student-status-filter" class="select-control">
+
+              <option value="active">Alunos ativos</option>
+
+              <option value="pending">Com pendência</option>
+
+              <option value="archived">Arquivados</option>
+
+              <option value="all">Todos</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="students-container" class="student-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-turmas" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Organize alunos por série, turma, turno e ano letivo.</p>
+
+            </div>
+
+            <button class="button button--primary admin-only" data-open-modal="class-modal" type="button">＋ Cadastrar turma</button>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="class-search" type="search" placeholder="Turma ou professor responsável">
+
+            </label>
+
+            <select id="class-year-filter" class="select-control">
+
+              <option value="">Todos os anos</option>
+
+            </select>
+
+            <select id="class-shift-filter" class="select-control">
+
+              <option value="">Todos os turnos</option>
+
+              <option value="Manhã">Manhã</option>
+
+              <option value="Tarde">Tarde</option>
+
+              <option value="Noite">Noite</option>
+
+              <option value="Integral">Integral</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="classes-container" class="class-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-relatorios" class="page-view is-hidden">
+
+          <div class="report-toolbar">
+
+            <div class="report-period">
+
+              <label class="date-filter">
+
+                <span>Período inicial</span>
+
+                <input id="report-start-date" type="date">
+
+              </label>
+
+              <label class="date-filter">
+
+                <span>Período final</span>
+
+                <input id="report-end-date" type="date">
+
+              </label>
+
+              <button id="report-apply-button" class="button button--primary button--compact" type="button">Aplicar período</button>
+
+            </div>
+
+            <div class="page-actions__buttons">
+
+              <button id="report-export-button" class="button button--secondary" type="button">↓ Exportar CSV</button>
+
+              <button id="report-print-button" class="button button--secondary" type="button">⌁ Imprimir</button>
+
+            </div>
+
+          </div>
+
+ 
+
+          <div class="report-metrics">
+
+            <article><span>Empréstimos</span><strong id="report-total-loans">0</strong><small>no período</small></article>
+
+            <article><span>Devolvidos</span><strong id="report-returned-loans">0</strong><small>finalizados</small></article>
+
+            <article><span>Perdidos</span><strong id="report-lost-loans">0</strong><small>exemplares</small></article>
+
+            <article><span>Danificados</span><strong id="report-damaged-loans">0</strong><small>exemplares</small></article>
+
+          </div>
+
+ 
+
+          <div class="report-grid">
+
+            <article class="panel">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Comparativo</p>
+
+                  <h2>Uso por turma</h2>
+
+                </div>
+
+              </div>
+
+              <div id="report-class-bars" class="bar-list"></div>
+
+            </article>
+
+ 
+
+            <article class="panel">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Categorias</p>
+
+                  <h2>Preferências de leitura</h2>
+
+                </div>
+
+              </div>
+
+              <div class="donut-layout">
+
+                <canvas id="category-chart" width="220" height="220"></canvas>
+
+                <div id="category-legend" class="donut-legend"></div>
+
+              </div>
+
+            </article>
+
+ 
+
+            <article class="panel report-grid__wide">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Acervo</p>
+
+                  <h2>Livros mais emprestados</h2>
+
+                </div>
+
+              </div>
+
+              <div id="report-popular-books" class="table-shell table-shell--flat"></div>
+
+            </article>
+
+ 
+
+            <article class="panel report-grid__wide">
+
+              <div class="panel__header">
+
+                <div>
+
+                  <p class="eyebrow">Conservação</p>
+
+                  <h2>Exemplares perdidos ou danificados</h2>
+
+                </div>
+
+              </div>
+
+              <div id="report-losses" class="table-shell table-shell--flat"></div>
+
+            </article>
+
+          </div>
+
+        </section>
+
+ 
+
+        <section id="view-atividades" class="page-view is-hidden">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Registro das ações importantes realizadas no sistema.</p>
+
+            </div>
+
+            <button id="activity-refresh-button" class="button button--secondary" type="button">↻ Atualizar</button>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="activity-search" type="search" placeholder="Usuário, ação ou registro">
+
+            </label>
+
+            <select id="activity-type-filter" class="select-control">
+
+              <option value="">Todos os tipos</option>
+
+              <option value="loan">Empréstimos</option>
+
+              <option value="book">Livros</option>
+
+              <option value="student">Alunos</option>
+
+              <option value="class">Turmas</option>
+
+              <option value="reservation">Reservas</option>
+
+              <option value="notice">Avisos</option>
+
+              <option value="user">Usuários</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="activity-container" class="timeline"></div>
+
+        </section>
+
+ 
+
+ 
+
+        <section id="view-escolas" class="page-view is-hidden admin-only">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Unidades escolares atendidas pelo BookShare.</p>
+
+            </div>
+
+            <button class="button button--primary" data-open-modal="school-modal" type="button">＋ Cadastrar escola</button>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="school-search" type="search" placeholder="Nome, código ou endereço">
+
+            </label>
+
+            <select id="school-status-filter" class="select-control">
+
+              <option value="">Todas as situações</option>
+
+              <option value="active">Ativas</option>
+
+              <option value="inactive">Arquivadas</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="schools-container" class="school-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-usuarios" class="page-view is-hidden admin-only">
+
+          <div class="page-actions">
+
+            <div>
+
+              <p class="page-description">Contas autorizadas para administração e atendimento da biblioteca.</p>
+
+            </div>
+
+            <button class="button button--primary" data-open-modal="user-modal" type="button">＋ Cadastrar conta</button>
+
+          </div>
+
+ 
+
+          <div class="filter-bar">
+
+            <label class="search-field">
+
+              <span>⌕</span>
+
+              <input id="user-search" type="search" placeholder="Nome ou e-mail">
+
+            </label>
+
+            <select id="user-role-filter" class="select-control">
+
+              <option value="">Todos os perfis</option>
+
+              <option value="librarian">Bibliotecárias</option>
+
+              <option value="admin">Administradores</option>
+
+            </select>
+
+          </div>
+
+ 
+
+          <div id="users-container" class="user-grid"></div>
+
+        </section>
+
+ 
+
+        <section id="view-configuracoes" class="page-view is-hidden">
+
+          <div class="settings-layout">
+
+            <aside class="settings-menu">
+
+              <button class="is-active" data-settings-tab="general" type="button">Geral</button>
+
+              <button data-settings-tab="loans" type="button">Empréstimos</button>
+
+              <button data-settings-tab="messages" type="button">Mensagens</button>
+
+              <button data-settings-tab="account" type="button">Minha conta</button>
+
+            </aside>
+
+ 
+
+            <form id="settings-form" class="panel settings-form">
+
+              <section id="settings-general" class="settings-section">
+
+                <div class="settings-section__heading">
+
+                  <p class="eyebrow">Identidade</p>
+
+                  <h2>Informações da biblioteca</h2>
+
+                  <p>Esses dados aparecem no sistema e nos relatórios.</p>
+
+                </div>
+
+ 
+
+                <div class="form-grid">
+
+                  <label class="field field--full">
+
+                    <span class="field__label">Nome da escola</span>
+
+                    <input name="school_name" type="text" maxlength="120" required>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Nome da biblioteca</span>
+
+                    <input name="library_name" type="text" maxlength="120" required>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">E-mail de contato</span>
+
+                    <input name="contact_email" type="email">
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Telefone</span>
+
+                    <input name="contact_phone" type="text" maxlength="40">
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Ano letivo atual</span>
+
+                    <input name="current_school_year" type="number" min="2020" max="2100" required>
+
+                  </label>
+
+                </div>
+
+              </section>
+
+ 
+
+              <section id="settings-loans" class="settings-section is-hidden">
+
+                <div class="settings-section__heading">
+
+                  <p class="eyebrow">Regras</p>
+
+                  <h2>Política de empréstimos</h2>
+
+                  <p>As regras são validadas pelo servidor em todas as operações.</p>
+
+                </div>
+
+ 
+
+                <div class="form-grid form-grid--three">
+
+                  <label class="field">
+
+                    <span class="field__label">Prazo padrão</span>
+
+                    <span class="input-with-suffix"><input name="default_loan_days" type="number" min="1" max="90" required><small>dias</small></span>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Limite por aluno</span>
+
+                    <span class="input-with-suffix"><input name="max_active_loans" type="number" min="1" max="20" required><small>livros</small></span>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Máximo de renovações</span>
+
+                    <span class="input-with-suffix"><input name="max_renewals" type="number" min="0" max="10" required><small>vezes</small></span>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Prazo da renovação</span>
+
+                    <span class="input-with-suffix"><input name="renewal_days" type="number" min="1" max="90" required><small>dias</small></span>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Avisar antes do prazo</span>
+
+                    <span class="input-with-suffix"><input name="due_soon_days" type="number" min="0" max="30" required><small>dias</small></span>
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Validade da reserva</span>
+
+                    <span class="input-with-suffix"><input name="reservation_hold_days" type="number" min="1" max="30" required><small>dias</small></span>
+
+                  </label>
+
+                </div>
+
+ 
+
+                <label class="toggle-field">
+
+                  <span>
+
+                    <strong>Bloquear aluno com atraso</strong>
+
+                    <small>Impede novos empréstimos enquanto houver pendência.</small>
+
+                  </span>
+
+                  <input name="block_overdue_students" type="checkbox">
+
+                  <i></i>
+
+                </label>
+
+              </section>
+
+ 
+
+              <section id="settings-messages" class="settings-section is-hidden">
+
+                <div class="settings-section__heading">
+
+                  <p class="eyebrow">Comunicação</p>
+
+                  <h2>Modelos de mensagens</h2>
+
+                  <p>Use as variáveis disponíveis para preencher os dados automaticamente.</p>
+
+                </div>
+
+ 
+
+                <label class="field">
+
+                  <span class="field__label">Mensagem de atraso</span>
+
+                  <textarea name="notice_template" rows="7" required></textarea>
+
+                  <small>Variáveis: {aluno}, {turma}, {livro}, {data}, {dias}, {escola}</small>
+
+                </label>
+
+ 
+
+                <label class="field">
+
+                  <span class="field__label">Mensagem de reserva disponível</span>
+
+                  <textarea name="reservation_template" rows="6" required></textarea>
+
+                  <small>Variáveis: {aluno}, {turma}, {livro}, {validade}, {escola}</small>
+
+                </label>
+
+              </section>
+
+ 
+
+              <section id="settings-account" class="settings-section is-hidden">
+
+                <div class="settings-section__heading">
+
+                  <p class="eyebrow">Meu perfil</p>
+
+                  <h2>Foto e identificação</h2>
+
+                  <p>A foto aparece no topo e ajuda a diferenciar a bibliotecária do administrador.</p>
+
+                </div>
+
+ 
+
+                <div class="profile-editor">
+
+                  <label class="profile-photo-picker" for="profile-photo-input">
+
+                    <span id="profile-photo-preview" class="profile-photo-preview">BS</span>
+
+                    <strong>Escolher foto</strong>
+
+                    <small>JPG, PNG ou WEBP. A imagem será reduzida antes do envio.</small>
+
+                    <input id="profile-photo-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+
+                  </label>
+
+                  <div class="profile-editor__fields">
+
+                    <label class="field">
+
+                      <span class="field__label">Nome exibido</span>
+
+                      <input id="profile-name-input" type="text" maxlength="120">
+
+                    </label>
+
+                    <label class="field">
+
+                      <span class="field__label">E-mail da conta</span>
+
+                      <input id="profile-email-input" type="email" readonly>
+
+                    </label>
+
+                    <label class="field">
+
+                      <span class="field__label">Telefone</span>
+
+                      <input id="profile-phone-input" type="text" maxlength="40" placeholder="(41) 99999-9999">
+
+                    </label>
+
+                    <div class="profile-role-card">
+
+                      <span id="profile-role-icon">B</span>
+
+                      <div><strong id="profile-role-title">Bibliotecária</strong><small id="profile-role-description">Atendimento e circulação do acervo.</small></div>
+
+                    </div>
+
+                    <div class="profile-context-grid">
+
+                      <div><span>Escola</span><strong id="profile-school-name">Biblioteca Escolar</strong></div>
+
+                      <div><span>Cargo</span><strong id="profile-job-title">Bibliotecária</strong></div>
+
+                      <div><span>Telefone</span><strong id="profile-phone">Não informado</strong></div>
+
+                    </div>
+
+                    <button id="save-profile-button" class="button button--primary" type="button">Salvar meu perfil</button>
+
+                  </div>
+
+                </div>
+
+ 
+
+                <div class="settings-divider"></div>
+
+ 
+
+                <div class="settings-section__heading">
+
+                  <p class="eyebrow">Segurança</p>
+
+                  <h2>Alterar minha senha</h2>
+
+                  <p>A senha é atualizada no servidor e armazenada de forma criptografada.</p>
+
+                </div>
+
+ 
+
+                <div class="form-grid">
+
+                  <label class="field">
+
+                    <span class="field__label">Senha atual</span>
+
+                    <input id="current-password" type="password" autocomplete="current-password">
+
+                  </label>
+
+                  <label class="field">
+
+                    <span class="field__label">Nova senha</span>
+
+                    <input id="new-password" type="password" minlength="8" autocomplete="new-password">
+
+                  </label>
+
+                </div>
+
+                <button id="change-own-password-button" class="button button--secondary" type="button">Alterar senha</button>
+
+              </section>
+
+ 
+
+              <div class="settings-form__footer">
+
+                <span id="settings-save-status">As alterações ainda não foram salvas.</span>
+
+                <button class="button button--primary" type="submit">Salvar configurações</button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+ 
+
+    <nav class="mobile-navigation" aria-label="Navegação móvel">
+
+      <button class="is-active" data-route="dashboard" type="button"><span>⌂</span><small>Início</small></button>
+
+ 
+
+      <button class="librarian-only" data-route="atendimento" type="button"><span>⌁</span><small>Atender</small></button>
+
+      <button class="librarian-only mobile-navigation__main" data-open-modal="loan-modal" type="button"><span>＋</span><small>Emprestar</small></button>
+
+      <button class="librarian-only" data-route="livros" type="button"><span>▤</span><small>Livros</small></button>
+
+ 
+
+      <button class="admin-only" data-route="usuarios" type="button"><span>♟</span><small>Equipe</small></button>
+
+      <button class="admin-only mobile-navigation__main" data-open-modal="user-modal" type="button"><span>＋</span><small>Conta</small></button>
+
+      <button class="admin-only" data-route="escolas" type="button"><span>⌂</span><small>Escolas</small></button>
+
+ 
+
+      <button id="mobile-more-button" type="button"><span>•••</span><small>Mais</small></button>
+
+    </nav>
+
+  </div>
+
+ 
+
+  <dialog id="loan-modal" class="modal">
+
+    <form id="loan-form" class="modal-card modal-card--large" novalidate>
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Circulação</p>
+
+          <h2>Registrar empréstimo</h2>
+
+          <p>Selecione o aluno e um título com exemplar disponível.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div class="step-indicator">
+
+          <span class="is-active"><i>1</i>Aluno</span>
+
+          <span><i>2</i>Livro</span>
+
+          <span><i>3</i>Prazo</span>
+
+        </div>
+
+ 
+
+        <div class="form-grid">
+
+          <label class="field field--full">
+
+            <span class="field__label">Aluno</span>
+
+            <select id="loan-student" name="student_id" required></select>
+
+            <small id="loan-student-helper">Selecione para consultar a situação do aluno.</small>
+
+          </label>
+
+          <div id="loan-student-status" class="selection-preview field--full is-hidden"></div>
+
+          <label class="field field--full">
+
+            <span class="field__label">Livro</span>
+
+            <select id="loan-book" name="book_id" required></select>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Data do empréstimo</span>
+
+            <input id="loan-date" name="loan_date" type="date" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Devolução prevista</span>
+
+            <input id="loan-due-date" name="due_date" type="date" required>
+
+          </label>
+
+          <label class="field field--full">
+
+            <span class="field__label">Observações</span>
+
+            <textarea name="notes" rows="3" placeholder="Opcional: projeto, professor solicitante, estado inicial..."></textarea>
+
+          </label>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Confirmar empréstimo</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="return-search-modal" class="modal">
+
+    <div class="modal-card">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Devolução</p>
+
+          <h2>Localizar empréstimo</h2>
+
+          <p>Busque pelo aluno, livro ou patrimônio.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <label class="search-field search-field--large">
+
+          <span>⌕</span>
+
+          <input id="return-search-input" type="search" placeholder="Digite para buscar">
+
+        </label>
+
+        <div id="return-search-results" class="service-results service-results--modal"></div>
+
+      </div>
+
+    </div>
+
+  </dialog>
+
+ 
+
+  <dialog id="return-modal" class="modal">
+
+    <form id="return-form" class="modal-card" novalidate>
+
+      <input name="loan_id" type="hidden">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Conferência</p>
+
+          <h2>Registrar devolução</h2>
+
+          <p id="return-modal-description">Confira o estado do exemplar.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div id="return-loan-preview" class="selection-preview"></div>
+
+        <div class="condition-selector">
+
+          <label>
+
+            <input type="radio" name="condition" value="normal" checked>
+
+            <span><i>✓</i><strong>Normal</strong><small>Volta ao acervo disponível</small></span>
+
+          </label>
+
+          <label>
+
+            <input type="radio" name="condition" value="damaged">
+
+            <span><i>!</i><strong>Danificado</strong><small>Exemplar fica indisponível</small></span>
+
+          </label>
+
+          <label>
+
+            <input type="radio" name="condition" value="lost">
+
+            <span><i>×</i><strong>Perdido</strong><small>Registra perda do patrimônio</small></span>
+
+          </label>
+
+        </div>
+
+        <label class="field">
+
+          <span class="field__label">Observações</span>
+
+          <textarea name="notes" rows="4" placeholder="Descreva danos, acordo realizado ou outras informações."></textarea>
+
+        </label>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Finalizar devolução</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="book-modal" class="modal">
+
+    <form id="book-form" class="modal-card modal-card--xlarge" novalidate>
+
+      <input name="id" type="hidden">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Catálogo</p>
+
+          <h2 id="book-modal-title">Cadastrar livro</h2>
+
+          <p>Informações bibliográficas e controle inicial de exemplares.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div class="book-form-layout">
+
+          <div class="cover-uploader">
+
+            <input id="book-cover-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+
+            <div id="book-cover-preview" class="cover-uploader__preview">
+
+              <span>▤</span>
+
+              <strong>Prévia da capa</strong>
+
+              <small>Envie a imagem autorizada ou use uma URL.</small>
+
+            </div>
+
+            <button id="book-cover-file-button" class="button button--secondary button--compact" type="button">Enviar capa</button>
+
+          </div>
+
+ 
+
+          <div class="form-grid">
+
+            <label class="field field--full">
+
+              <span class="field__label">Título</span>
+
+              <input name="title" type="text" maxlength="180" required>
+
+            </label>
+
+            <label class="field field--full">
+
+              <span class="field__label">Autor</span>
+
+              <input name="author" type="text" maxlength="160" required>
+
+            </label>
+
+            <label class="field">
+
+              <span class="field__label">Categoria</span>
+
+              <select id="book-category" name="category_id"></select>
+
+            </label>
+
+            <label class="field">
+
+              <span class="field__label">ISBN</span>
+
+              <input name="isbn" type="text" maxlength="30">
+
+            </label>
+
+            <label class="field">
+
+              <span class="field__label">Editora</span>
+
+              <input name="publisher" type="text" maxlength="120">
+
+            </label>
+
+            <label class="field">
+
+              <span class="field__label">Ano da publicação</span>
+
+              <input name="publication_year" type="number" min="1000" max="2100">
+
+            </label>
+
+            <label class="field">
+
+              <span class="field__label">Localização</span>
+
+              <input name="shelf" type="text" maxlength="80" placeholder="Estante A · Prateleira 2">
+
+            </label>
+
+            <label class="field">
+
+              <span class="field__label">Quantidade inicial</span>
+
+              <input name="quantity" type="number" min="1" max="999" value="1" required>
+
+            </label>
+
+            <label class="field field--full">
+
+              <span class="field__label">URL da capa (opcional)</span>
+
+              <input id="book-cover-url" name="cover_url" type="url" placeholder="https://...">
+
+            </label>
+
+            <label class="field field--full">
+
+              <span class="field__label">Descrição</span>
+
+              <textarea name="description" rows="4" placeholder="Resumo, edição ou observações do acervo."></textarea>
+
+            </label>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Salvar livro</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="copy-modal" class="modal">
+
+    <form id="copy-form" class="modal-card" novalidate>
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Patrimônio</p>
+
+          <h2>Adicionar exemplar</h2>
+
+          <p>Vincule um novo exemplar a um título existente.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <label class="field">
+
+          <span class="field__label">Livro</span>
+
+          <select id="copy-book" name="book_id" required></select>
+
+        </label>
+
+        <div class="form-grid">
+
+          <label class="field">
+
+            <span class="field__label">Quantidade</span>
+
+            <input name="quantity" type="number" min="1" max="100" value="1" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Data de aquisição</span>
+
+            <input name="acquired_at" type="date">
+
+          </label>
+
+        </div>
+
+        <label class="field">
+
+          <span class="field__label">Observação</span>
+
+          <textarea name="condition_notes" rows="3" placeholder="Doação, compra, estado inicial..."></textarea>
+
+        </label>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Adicionar ao acervo</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="student-modal" class="modal">
+
+    <form id="student-form" class="modal-card modal-card--large" novalidate>
+
+      <input name="id" type="hidden">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Comunidade escolar</p>
+
+          <h2 id="student-modal-title">Cadastrar aluno</h2>
+
+          <p>O cadastro será usado apenas internamente pela biblioteca.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div class="student-form-layout">
+
+          <div class="student-photo-uploader">
+
+            <input id="student-photo-url" name="photo_url" type="hidden">
+
+            <input id="student-photo-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+
+            <div id="student-photo-preview" class="student-photo-uploader__preview">A</div>
+
+            <button id="student-photo-button" class="button button--secondary button--compact" type="button">Escolher foto</button>
+
+            <small>Use somente uma foto autorizada. Ela será reduzida antes de salvar.</small>
+
+          </div>
+
+          <div class="form-grid">
+
+          <label class="field field--full">
+
+            <span class="field__label">Nome completo</span>
+
+            <input name="full_name" type="text" maxlength="160" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Matrícula</span>
+
+            <input name="registration_number" type="text" maxlength="40" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Turma</span>
+
+            <select id="student-class" name="class_id" required></select>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Número da chamada</span>
+
+            <input name="roll_number" type="number" min="1" max="99">
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Contato do responsável</span>
+
+            <input name="guardian_contact" type="text" maxlength="80" placeholder="Telefone ou e-mail">
+
+          </label>
+
+          <label class="field field--full">
+
+            <span class="field__label">Observações</span>
+
+            <textarea name="notes" rows="4"></textarea>
+
+          </label>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Salvar aluno</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="class-modal" class="modal">
+
+    <form id="class-form" class="modal-card" novalidate>
+
+      <input name="id" type="hidden">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Organização escolar</p>
+
+          <h2 id="class-modal-title">Cadastrar turma</h2>
+
+          <p>Informe a série, turno e ano letivo.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div class="form-grid">
+
+          <label class="field">
+
+            <span class="field__label">Nome da turma</span>
+
+            <input name="name" type="text" maxlength="60" placeholder="3º B" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Turno</span>
+
+            <select name="shift" required>
+
+              <option value="Manhã">Manhã</option>
+
+              <option value="Tarde">Tarde</option>
+
+              <option value="Noite">Noite</option>
+
+              <option value="Integral">Integral</option>
+
+            </select>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Ano letivo</span>
+
+            <input name="school_year" type="number" min="2020" max="2100" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Professor responsável</span>
+
+            <input name="teacher_name" type="text" maxlength="120">
+
+          </label>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Salvar turma</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="reservation-modal" class="modal">
+
+    <form id="reservation-form" class="modal-card" novalidate>
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Fila de espera</p>
+
+          <h2>Registrar reserva</h2>
+
+          <p>A reserva será vinculada ao aluno e ao título.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <label class="field">
+
+          <span class="field__label">Aluno</span>
+
+          <select id="reservation-student" name="student_id" required></select>
+
+        </label>
+
+        <label class="field">
+
+          <span class="field__label">Livro</span>
+
+          <select id="reservation-book" name="book_id" required></select>
+
+        </label>
+
+        <label class="field">
+
+          <span class="field__label">Observações</span>
+
+          <textarea name="notes" rows="3" placeholder="Projeto, professor solicitante ou prioridade."></textarea>
+
+        </label>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Criar reserva</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="notice-modal" class="modal">
+
+    <form id="notice-form" class="modal-card" novalidate>
+
+      <input name="loan_id" type="hidden">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Cobrança</p>
+
+          <h2>Registrar aviso</h2>
+
+          <p>Guarde como e quando a pendência foi comunicada.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div id="notice-message-preview" class="message-preview"></div>
+
+        <div class="form-grid">
+
+          <label class="field">
+
+            <span class="field__label">Canal utilizado</span>
+
+            <select name="channel" required>
+
+              <option value="Pessoalmente">Pessoalmente</option>
+
+              <option value="WhatsApp">WhatsApp</option>
+
+              <option value="Telefone">Telefone</option>
+
+              <option value="E-mail">E-mail</option>
+
+              <option value="Coordenação">Coordenação</option>
+
+              <option value="Bilhete impresso">Bilhete impresso</option>
+
+            </select>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Resultado</span>
+
+            <select name="result" required>
+
+              <option value="Avisado">Avisado</option>
+
+              <option value="Responsável avisado">Responsável avisado</option>
+
+              <option value="Sem resposta">Sem resposta</option>
+
+              <option value="Prometeu devolver">Prometeu devolver</option>
+
+              <option value="Encaminhado à coordenação">Encaminhado à coordenação</option>
+
+            </select>
+
+          </label>
+
+          <label class="field field--full">
+
+            <span class="field__label">Observações</span>
+
+            <textarea name="notes" rows="4"></textarea>
+
+          </label>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer modal-card__footer--split">
+
+        <button id="copy-notice-from-modal" class="button button--secondary" type="button">Copiar mensagem</button>
+
+        <div>
+
+          <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+          <button class="button button--primary" type="submit">Registrar contato</button>
+
+        </div>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="user-modal" class="modal">
+
+    <form id="user-form" class="modal-card modal-card--large" novalidate>
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Equipe da biblioteca</p>
+
+          <h2>Cadastrar conta</h2>
+
+          <p>Crie o acesso, escolha o perfil e vincule a pessoa à escola correta.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <div class="form-grid">
+
+          <label class="field field--full">
+
+            <span class="field__label">Nome completo</span>
+
+            <input name="name" type="text" maxlength="120" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">E-mail de acesso</span>
+
+            <input name="email" type="email" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Telefone</span>
+
+            <input name="phone" type="text" maxlength="40" placeholder="(41) 99999-9999">
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Cargo</span>
+
+            <input name="job_title" type="text" maxlength="80" value="Bibliotecária">
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Escola</span>
+
+            <select id="user-school" name="school_id">
+
+              <option value="">Selecione uma escola</option>
+
+            </select>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Perfil de acesso</span>
+
+            <select name="role" required>
+
+              <option value="librarian">Bibliotecária</option>
+
+              <option value="admin">Administrador</option>
+
+            </select>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Senha inicial</span>
+
+            <input name="password" type="password" minlength="8" required>
+
+            <small>Mínimo de oito caracteres. A funcionária poderá alterar depois.</small>
+
+          </label>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Criar acesso</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+ 
+
+  <dialog id="school-modal" class="modal">
+
+    <form id="school-form" class="modal-card modal-card--large" novalidate>
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p class="eyebrow">Unidade escolar</p>
+
+          <h2 id="school-modal-title">Cadastrar escola</h2>
+
+          <p>Essas informações identificam a unidade atendida.</p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div class="modal-card__body">
+
+        <input name="id" type="hidden">
+
+        <div class="form-grid">
+
+          <label class="field field--full">
+
+            <span class="field__label">Nome da escola</span>
+
+            <input name="name" type="text" maxlength="140" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Código da unidade</span>
+
+            <input name="code" type="text" maxlength="30" placeholder="ESCOLA-01" required>
+
+          </label>
+
+          <label class="field">
+
+            <span class="field__label">Telefone</span>
+
+            <input name="phone" type="text" maxlength="40">
+
+          </label>
+
+          <label class="field field--full">
+
+            <span class="field__label">Endereço</span>
+
+            <input name="address" type="text" maxlength="220">
+
+          </label>
+
+          <label class="field field--full">
+
+            <span class="field__label">E-mail institucional</span>
+
+            <input name="contact_email" type="email" maxlength="180">
+
+          </label>
+
+        </div>
+
+      </div>
+
+      <footer class="modal-card__footer">
+
+        <button class="button button--ghost" data-close-modal type="button">Cancelar</button>
+
+        <button class="button button--primary" type="submit">Salvar escola</button>
+
+      </footer>
+
+    </form>
+
+  </dialog>
+
+ 
+
+  <dialog id="detail-modal" class="modal">
+
+    <div class="modal-card modal-card--xlarge">
+
+      <header class="modal-card__header">
+
+        <div>
+
+          <p id="detail-modal-eyebrow" class="eyebrow">Detalhes</p>
+
+          <h2 id="detail-modal-title">Informações</h2>
+
+          <p id="detail-modal-subtitle"></p>
+
+        </div>
+
+        <button class="icon-button" data-close-modal type="button">×</button>
+
+      </header>
+
+      <div id="detail-modal-content" class="modal-card__body"></div>
+
+    </div>
+
+  </dialog>
+
+ 
+
+  <dialog id="confirm-modal" class="modal modal--small">
+
+    <div class="modal-card">
+
+      <div class="confirm-dialog">
+
+        <span id="confirm-icon" class="confirm-dialog__icon">!</span>
+
+        <h2 id="confirm-title">Confirmar ação</h2>
+
+        <p id="confirm-message">Deseja continuar?</p>
+
+        <div class="confirm-dialog__actions">
+
+          <button id="confirm-cancel" class="button button--ghost" type="button">Cancelar</button>
+
+          <button id="confirm-accept" class="button button--danger" type="button">Confirmar</button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </dialog>
+
+ 
+
+  <script src="script.js?v=36"></script>
 
 </body>
+
 </html>
