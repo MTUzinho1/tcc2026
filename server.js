@@ -3390,140 +3390,146 @@ async function ensureRuntimeSchema() {
  
 
 async function ensureInitialUsers() {
-
-  const accounts = [
-
+  const defaultAccounts = [
     {
-
-      name: cleanText(process.env.ADMIN_NAME) || "Administrador BookShare",
-
-      email: (cleanText(process.env.ADMIN_EMAIL) || "admin@bookshare.com").toLowerCase(),
-
-      password: String(process.env.ADMIN_PASSWORD || "BookShare@2026"),
-
-      role: "admin",
-
-      variableGroup: "ADMIN"
-
+      name: "Administrador BookShare",
+      email: "admin@bookshare.com",
+      password: "BookShare@2026",
+      role: "admin"
     },
-
     {
-
-      name: cleanText(process.env.LIBRARIAN1_NAME) || "Bibliotecária",
-
-      email: (cleanText(process.env.LIBRARIAN1_EMAIL) || "biblioteca@bookshare.com").toLowerCase(),
-
-      password: String(process.env.LIBRARIAN1_PASSWORD || "Biblioteca@2026"),
-
-      role: "librarian",
-
-      variableGroup: "LIBRARIAN1"
-
+      name: "Bibliotecária",
+      email: "biblioteca@bookshare.com",
+      password: "Biblioteca@2026",
+      role: "librarian"
     }
-
   ];
 
- 
+  for (const account of defaultAccounts) {
+    const email = account.email.trim().toLowerCase();
+    const defaultJobTitle = account.role === "admin"
+      ? "Administrador do sistema"
+      : "Bibliotecária";
 
-  for (const account of accounts) {
-
-    if (!account.email || account.password.length < 8) {
-
-      console.warn(`${account.variableGroup}_EMAIL ou ${account.variableGroup}_PASSWORD não configurados corretamente. Essa conta inicial não foi criada.`);
-
-      continue;
-
-    }
-
- 
-
-    const existing = await pool.query(
-
+    const exactAccount = await pool.query(
       `SELECT id, role, active, deleted_at, password_hash
-
        FROM users
-
-       WHERE email = $1`,
-
-      [account.email]
-
+       WHERE LOWER(BTRIM(email)) = $1
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [email]
     );
 
- 
-
-    if (existing.rows[0]) {
-
-      const current = existing.rows[0];
-
-      const resetInitialPasswords = String(process.env.RESET_INITIAL_PASSWORDS || "false").toLowerCase() === "true";
-
-      const invalidHash = !/^\$2[aby]\$\d{2}\$/.test(String(current.password_hash || ""));
-
-      const passwordHash = resetInitialPasswords || invalidHash
-
-        ? await bcrypt.hash(account.password, 12)
-
-        : current.password_hash;
-
- 
-
-      const defaultJobTitle = account.role === "admin"
-        ? "Administrador do sistema"
-        : "Bibliotecária";
-
-      await pool.query(
-
-        `UPDATE users
-
-         SET name = COALESCE(NULLIF(name, ''), $1),
-
-             role = $2::user_role,
-
-             active = TRUE,
-
-             deleted_at = NULL,
-
-             password_hash = $3,
-
-             job_title = COALESCE(NULLIF(job_title, ''), $4),
-
-             updated_at = NOW()
-
-         WHERE id = $5`,
-
-        [account.name, account.role, passwordHash, defaultJobTitle, current.id]
-
+    if (exactAccount.rows[0]) {
+      const current = exactAccount.rows[0];
+      const hasValidBcryptHash = /^\$2[aby]\$\d{2}\$/.test(
+        String(current.password_hash || "")
       );
 
-      continue;
+      // Preserva qualquer senha válida alterada pelo administrador.
+      // A senha padrão só é usada quando o hash está ausente ou corrompido.
+      const passwordHash = hasValidBcryptHash
+        ? current.password_hash
+        : await bcrypt.hash(account.password, 12);
 
+      await pool.query(
+        `UPDATE users
+         SET name = COALESCE(NULLIF(BTRIM(name), ''), $1),
+             email = $2,
+             role = $3::user_role,
+             active = TRUE,
+             deleted_at = NULL,
+             password_hash = $4,
+             job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $5),
+             updated_at = NOW()
+         WHERE id = $6`,
+        [
+          account.name,
+          email,
+          account.role,
+          passwordHash,
+          defaultJobTitle,
+          current.id
+        ]
+      );
+
+      console.log(`Conta inicial verificada: ${email} (${account.role}).`);
+      continue;
     }
 
- 
+    // Se o administrador alterou o e-mail da conta pelo painel,
+    // não recria uma segunda conta padrão no próximo deploy.
+    const accountWithSameRole = await pool.query(
+      `SELECT id
+       FROM users
+       WHERE role = $1::user_role
+         AND active = TRUE
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [account.role]
+    );
+
+    if (accountWithSameRole.rows[0]) {
+      console.log(
+        `Já existe uma conta ativa do perfil ${account.role}; ` +
+        `a conta padrão ${email} não foi recriada.`
+      );
+      continue;
+    }
 
     const passwordHash = await bcrypt.hash(account.password, 12);
 
     await pool.query(
-
-      `INSERT INTO users (name, email, password_hash, role, active)
-
-       VALUES ($1, $2, $3, $4::user_role, TRUE)`,
-
-      [account.name, account.email, passwordHash, account.role]
-
+      `INSERT INTO users (
+         name,
+         email,
+         password_hash,
+         role,
+         active,
+         job_title,
+         deleted_at
+       )
+       VALUES ($1, $2, $3, $4::user_role, TRUE, $5, NULL)`,
+      [
+        account.name,
+        email,
+        passwordHash,
+        account.role,
+        defaultJobTitle
+      ]
     );
 
- 
-
-    console.log(`Conta inicial criada: ${account.email} (${account.role})`);
-
+    console.log(`Conta inicial criada: ${email} (${account.role}).`);
   }
-
 }
 
- 
+async function findUserForLogin(email) {
+  const result = await pool.query(
+    `SELECT
+       u.id,
+       u.name,
+       u.email,
+       u.password_hash,
+       u.role,
+       u.active,
+       u.deleted_at,
+       u.avatar_url,
+       u.phone,
+       u.job_title,
+       u.school_id,
+       u.last_login_at,
+       s.name AS school_name
+     FROM users u
+     LEFT JOIN schools s ON s.id = u.school_id
+     WHERE LOWER(BTRIM(u.email)) = $1
+     ORDER BY u.created_at ASC
+     LIMIT 1`,
+    [email]
+  );
 
- 
+  return result.rows[0] || null;
+}
 
 function isDataImage(value) {
 
@@ -4755,51 +4761,21 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
 
  
 
-  const result = await pool.query(
+  let user = await findUserForLogin(email);
 
-    `SELECT
+  const isProtectedInitialAccount = [
+    "admin@bookshare.com",
+    "biblioteca@bookshare.com"
+  ].includes(email);
 
-       u.id,
+  if (isProtectedInitialAccount && (!user || !user.active || user.deleted_at)) {
+    await ensureInitialUsers();
+    user = await findUserForLogin(email);
+  }
 
-       u.name,
-
-       u.email,
-
-       u.password_hash,
-
-       u.role,
-
-       u.active,
-
-       u.avatar_url,
-
-       u.phone,
-
-       u.job_title,
-
-       u.school_id,
-
-       u.last_login_at,
-
-       s.name AS school_name
-
-     FROM users u
-
-     LEFT JOIN schools s ON s.id = u.school_id
-
-     WHERE u.email = $1
-
-       AND u.deleted_at IS NULL`,
-
-    [email]
-
-  );
-
- 
-
-  const user = result.rows[0];
-
-  if (!user || !user.active) throw httpError(401, "E-mail ou senha incorretos.");
+  if (!user || !user.active || user.deleted_at) {
+    throw httpError(401, "E-mail ou senha incorretos.");
+  }
 
  
 
