@@ -16390,3 +16390,219 @@ body{background:var(--new-bg);color:var(--new-text)}
 @media(max-width:1280px){.topbar{grid-template-columns:250px 1fr auto!important;gap:14px!important;padding-left:24px!important;padding-right:24px!important}.topbar-date{display:none!important}.topbar-profile{min-width:180px!important}.home-primary-actions{grid-template-columns:repeat(3,minmax(0,1fr))!important}.home-action:nth-child(4),.home-action:nth-child(5){min-height:280px!important}.function-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
 @media(max-width:900px){.topbar{grid-template-columns:auto 1fr auto!important;min-height:auto!important;padding:14px 18px!important}.topbar-brand__copy{display:none!important}.topbar-brand__mark{width:46px;height:46px}.topbar__center{grid-column:1/-1!important;grid-row:2!important;max-width:none!important}.topbar-profile{min-width:58px!important;width:58px!important;padding:6px!important}.topbar-profile__copy,.topbar-role-pill,.topbar-profile>span:last-child{display:none!important}.workspace{padding:22px 18px 34px!important}.home-primary-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}.function-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.home-mission{grid-template-columns:auto 1fr}.home-mission__books,.home-mission__book{display:none}}
 @media(max-width:560px){.topbar{gap:8px!important;padding:10px 12px!important}.notification-button{width:48px!important;height:48px!important}.topbar-profile{width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important}.workspace{padding:18px 12px 28px!important}.new-home__welcome h2{font-size:2rem!important}.new-home__welcome p{font-size:.96rem!important}.home-primary-actions{gap:10px!important}.home-action{min-height:226px!important;border-radius:20px!important;padding:16px 10px 0!important}.home-action:nth-child(5){grid-column:1/-1!important}.home-action__icon{width:60px!important;height:60px!important;font-size:1.75rem!important;margin-bottom:12px!important}.home-action>strong{font-size:1rem!important}.home-action>small{font-size:.8rem!important;min-height:36px!important;margin:6px 0 10px!important}.home-action__cta{min-height:48px!important;font-size:.78rem!important}.function-grid{grid-template-columns:1fr!important;gap:10px!important}.function-button{min-height:78px!important}.home-mission{display:none!important}}
+
+/* BookShare - correção final da tela de login */
+@keyframes bookshareLoginCovers {
+  from { transform: translate3d(0,0,0); }
+  to { transform: translate3d(calc(-50% - 8px),0,0); }
+}
+
+@media (min-width: 901px) {
+  html, body { min-width: 0 !important; overflow-x: hidden !important; }
+  .auth-view.auth-view--clean {
+    min-height: 100dvh !important;
+    padding: 28px 4vw !important;
+    display: grid !important;
+    place-items: center !important;
+    overflow: hidden !important;
+    background:
+      radial-gradient(circle at 10% 14%, rgba(48,139,111,.12), transparent 31%),
+      radial-gradient(circle at 91% 84%, rgba(225,157,65,.10), transparent 27%),
+      #f7faf8 !important;
+  }
+  .auth-view.auth-view--clean .login-shell {
+    width: min(1500px, 100%) !important;
+    height: min(820px, calc(100dvh - 56px)) !important;
+    min-height: 650px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.55fr) minmax(410px, .72fr) !important;
+    gap: clamp(44px, 5vw, 86px) !important;
+    align-items: center !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .auth-view.auth-view--clean .login-intro {
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: clamp(18px, 2.4vw, 34px) 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    background: transparent !important;
+    color: #153f37 !important;
+  }
+  .auth-view.auth-view--clean .login-brand {
+    margin: 0 0 clamp(34px, 5vh, 58px) !important;
+    color: #173d36 !important;
+  }
+  .auth-view.auth-view--clean .login-brand__mark {
+    width: 54px !important;
+    height: 54px !important;
+    border: 0 !important;
+    border-radius: 16px !important;
+    background: linear-gradient(145deg,#13ad5a,#087f42) !important;
+    color: #fff !important;
+    box-shadow: 0 12px 28px rgba(11,137,72,.18) !important;
+  }
+  .auth-view.auth-view--clean .login-brand strong {
+    color: #163e36 !important;
+    font-size: 1.35rem !important;
+  }
+  .auth-view.auth-view--clean .login-brand small {
+    color: #60746d !important;
+    font-size: .9rem !important;
+  }
+  .auth-view.auth-view--clean .login-intro__content {
+    width: 100% !important;
+    max-width: 820px !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+  .auth-view.auth-view--clean .login-intro h1 {
+    width: 100% !important;
+    max-width: 780px !important;
+    margin: 0 !important;
+    color: #143f37 !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+    font-size: clamp(4rem, 6vw, 6.7rem) !important;
+    line-height: .92 !important;
+    letter-spacing: -.065em !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-wrap: balance !important;
+  }
+  .auth-view.auth-view--clean .login-intro p {
+    max-width: 690px !important;
+    margin: 28px 0 0 !important;
+    color: #5d706a !important;
+    font-size: clamp(1.05rem, 1.4vw, 1.28rem) !important;
+    line-height: 1.65 !important;
+  }
+  .auth-view.auth-view--clean .login-intro p strong { color: #165a4c !important; }
+  .welcome-books {
+    width: min(760px, 100%) !important;
+    max-width: none !important;
+    margin: clamp(30px, 4vh, 48px) 0 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .welcome-books__viewport {
+    width: 100% !important;
+    overflow: hidden !important;
+    border-radius: 18px !important;
+    -webkit-mask-image: linear-gradient(90deg,transparent 0,#000 5%,#000 95%,transparent 100%) !important;
+    mask-image: linear-gradient(90deg,transparent 0,#000 5%,#000 95%,transparent 100%) !important;
+  }
+  .welcome-books__track--auto {
+    width: max-content !important;
+    display: flex !important;
+    gap: 18px !important;
+    padding: 8px 10px 18px !important;
+    animation: bookshareLoginCovers 28s linear infinite !important;
+    will-change: transform !important;
+  }
+  .welcome-book {
+    flex: 0 0 118px !important;
+    width: 118px !important;
+    display: block !important;
+  }
+  .welcome-book img {
+    display: block !important;
+    width: 118px !important;
+    height: 177px !important;
+    object-fit: cover !important;
+    border-radius: 13px !important;
+    box-shadow: 0 14px 34px rgba(28,65,55,.16) !important;
+  }
+  .welcome-books__header,
+  .welcome-books__controls,
+  .welcome-book strong,
+  .welcome-book span,
+  .welcome-book__cover { display: none !important; }
+  .auth-view.auth-view--clean .login-panel {
+    justify-self: end !important;
+    width: min(470px, 100%) !important;
+    min-width: 0 !important;
+    min-height: 600px !important;
+    padding: clamp(44px, 4.3vw, 62px) clamp(36px, 4vw, 52px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    border: 1px solid #dce7e2 !important;
+    border-radius: 30px !important;
+    background: #fff !important;
+    box-shadow: 0 30px 90px rgba(25,61,52,.13) !important;
+    overflow: hidden !important;
+  }
+  .auth-view.auth-view--clean .login-panel__mobile-brand,
+  .login-mobile-welcome { display: none !important; }
+  .auth-view.auth-view--clean .login-panel__heading h2 {
+    font-size: clamp(2.2rem, 3.1vw, 3rem) !important;
+    line-height: 1.03 !important;
+  }
+  .auth-view.auth-view--clean .login-form { margin-top: 36px !important; }
+  .auth-view.auth-view--clean .login-input-wrap {
+    min-height: 60px !important;
+    grid-template-columns: 28px minmax(0,1fr) auto !important;
+  }
+  .auth-view.auth-view--clean .login-input-wrap input {
+    min-width: 0 !important;
+    padding-right: 8px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .auth-view.auth-view--clean .login-show-password {
+    white-space: nowrap !important;
+    padding-left: 10px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .auth-view.auth-view--clean {
+    min-height: 100dvh !important;
+    padding: 22px !important;
+    overflow-x: hidden !important;
+  }
+  .auth-view.auth-view--clean .login-shell {
+    width: min(560px,100%) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+  .auth-view.auth-view--clean .login-intro { display: none !important; }
+  .auth-view.auth-view--clean .login-panel {
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 42px 34px !important;
+    border: 1px solid #dce7e2 !important;
+    border-radius: 26px !important;
+    background: #fff !important;
+    box-shadow: 0 24px 70px rgba(25,61,52,.11) !important;
+  }
+  .auth-view.auth-view--clean .login-panel__mobile-brand { display: flex !important; }
+  .login-mobile-welcome { display: block !important; margin-bottom: 28px !important; }
+  .login-mobile-welcome h1 { margin: 0 !important; color:#173f37 !important; font-size: clamp(2rem,8vw,2.7rem) !important; line-height:1 !important; }
+  .login-mobile-welcome p { margin: 14px 0 0 !important; color:#65746f !important; line-height:1.55 !important; }
+}
+
+@media (max-width: 520px) {
+  .auth-view.auth-view--clean { padding: 0 !important; background: #fff !important; }
+  .auth-view.auth-view--clean .login-shell { width:100% !important; min-height:100dvh !important; }
+  .auth-view.auth-view--clean .login-panel {
+    min-height: 100dvh !important;
+    padding: 28px 22px max(28px,env(safe-area-inset-bottom)) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .auth-view.auth-view--clean .login-input-wrap { min-height: 56px !important; }
+}
