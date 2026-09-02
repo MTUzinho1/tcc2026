@@ -17,7 +17,7 @@
   <meta name="description" content="BookShare — sistema completo de gestão para biblioteca escolar.">
 
   <title>BookShare | Gestão de Biblioteca Escolar</title>
-<link rel="stylesheet" href="./style.css?v=20260902-fastlogin">
+<link rel="stylesheet" href="./style.css?v=20260902-loginfix">
 
 
   <style id="bookshare-login-fallback">
@@ -67,40 +67,18 @@
           <p>Gerencie <strong>alunos, livros, empréstimos, devoluções e reservas</strong> em um só lugar.</p>
 
           <div class="welcome-books" aria-label="Livros em destaque">
-            <div class="welcome-books__header">
-              <span>Livros que todo mundo conhece</span>
-              <div class="welcome-books__controls">
-                <button class="welcome-books__button" type="button" data-book-carousel-prev aria-label="Livro anterior">‹</button>
-                <button class="welcome-books__button" type="button" data-book-carousel-next aria-label="Próximo livro">›</button>
-              </div>
-            </div>
-            <div class="welcome-books__viewport" data-book-carousel>
-              <div class="welcome-books__track">
-                <article class="welcome-book">
-                  <div class="welcome-book__cover"><img src="https://covers.openlibrary.org/b/isbn/9780241252086-M.jpg?default=false" alt="Capa de Noites Brancas" width="92" height="138" decoding="async"></div>
-                  <strong>Noites Brancas</strong>
-                  <span>Fiódor Dostoiévski</span>
-                </article>
-                <article class="welcome-book">
-                  <div class="welcome-book__cover"><img src="https://covers.openlibrary.org/b/isbn/9780451524935-M.jpg?default=false" alt="Capa de 1984" width="92" height="138" loading="lazy" decoding="async"></div>
-                  <strong>1984</strong>
-                  <span>George Orwell</span>
-                </article>
-                <article class="welcome-book">
-                  <div class="welcome-book__cover"><img src="https://covers.openlibrary.org/b/isbn/9780156012195-M.jpg?default=false" alt="Capa de O Pequeno Príncipe" width="92" height="138" loading="lazy" decoding="async"></div>
-                  <strong>O Pequeno Príncipe</strong>
-                  <span>Antoine de Saint-Exupéry</span>
-                </article>
-                <article class="welcome-book">
-                  <div class="welcome-book__cover"><img src="https://covers.openlibrary.org/b/isbn/9780590353427-M.jpg?default=false" alt="Capa de Harry Potter e a Pedra Filosofal" width="92" height="138" loading="lazy" decoding="async"></div>
-                  <strong>Harry Potter</strong>
-                  <span>J. K. Rowling</span>
-                </article>
-                <article class="welcome-book">
-                  <div class="welcome-book__cover"><img src="https://covers.openlibrary.org/b/isbn/9780547928227-M.jpg?default=false" alt="Capa de O Hobbit" width="92" height="138" loading="lazy" decoding="async"></div>
-                  <strong>O Hobbit</strong>
-                  <span>J. R. R. Tolkien</span>
-                </article>
+            <div class="welcome-books__viewport">
+              <div class="welcome-books__track welcome-books__track--auto">
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780241252086-M.jpg?default=false" alt="Capa de Noites Brancas" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780451524935-M.jpg?default=false" alt="Capa de 1984" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780156012195-M.jpg?default=false" alt="Capa de O Pequeno Príncipe" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780590353427-M.jpg?default=false" alt="Capa de Harry Potter" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780547928227-M.jpg?default=false" alt="Capa de O Hobbit" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780241252086-M.jpg?default=false" alt="Capa de Noites Brancas" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780451524935-M.jpg?default=false" alt="Capa de 1984" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780156012195-M.jpg?default=false" alt="Capa de O Pequeno Príncipe" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780590353427-M.jpg?default=false" alt="Capa de Harry Potter" width="112" height="168" loading="lazy" decoding="async"></div>
+                  <div class="welcome-book"><img src="https://covers.openlibrary.org/b/isbn/9780547928227-M.jpg?default=false" alt="Capa de O Hobbit" width="112" height="168" loading="lazy" decoding="async"></div>
               </div>
             </div>
           </div>
@@ -114,13 +92,7 @@
         <div class="login-mobile-welcome">
           <h1>Bem-vindo ao BookShare</h1>
           <p>Gerencie <strong>alunos, livros, empréstimos, devoluções e reservas</strong> em um só lugar.</p>
-          <div class="login-mobile-books" aria-label="Livros em destaque">
-            <img src="https://covers.openlibrary.org/b/isbn/9780241252086-S.jpg?default=false" alt="Noites Brancas" width="54" height="82" decoding="async">
-            <img src="https://covers.openlibrary.org/b/isbn/9780451524935-S.jpg?default=false" alt="1984" width="54" height="82" loading="lazy" decoding="async">
-            <img src="https://covers.openlibrary.org/b/isbn/9780156012195-S.jpg?default=false" alt="O Pequeno Príncipe" width="54" height="82" loading="lazy" decoding="async">
-            <img src="https://covers.openlibrary.org/b/isbn/9780590353427-S.jpg?default=false" alt="Harry Potter" width="54" height="82" loading="lazy" decoding="async">
-            <img src="https://covers.openlibrary.org/b/isbn/9780547928227-S.jpg?default=false" alt="O Hobbit" width="54" height="82" loading="lazy" decoding="async">
-          </div>
+
         </div>
 
         <header class="login-panel__heading">
@@ -425,17 +397,15 @@
       <header class="topbar">
 
         <div class="topbar__left">
-
           <button id="menu-button" class="icon-button topbar__menu" type="button" aria-label="Abrir menu">☰</button>
-
+          <button class="topbar-brand" data-route="dashboard" type="button" aria-label="Ir para o início">
+            <span class="topbar-brand__mark">BS</span>
+            <span class="topbar-brand__copy"><strong>Book<span>Share</span></strong><small>Biblioteca Escolar</small></span>
+          </button>
           <div class="page-heading">
-
             <p id="page-eyebrow" class="eyebrow">Visão geral</p>
-
-            <h1 id="page-title">Dashboard</h1>
-
+            <h1 id="page-title">Início</h1>
           </div>
-
         </div>
 
  
@@ -459,7 +429,7 @@
  
 
         <div class="topbar__right">
-
+          <div class="topbar-date" aria-label="Data e hora atual"><span class="topbar-date__icon">▣</span><span><strong id="topbar-date-text">Hoje</strong><small id="topbar-time-text">00:00</small></span></div>
           <button id="refresh-button" class="icon-button icon-button--bordered" type="button" aria-label="Atualizar dados">↻</button>
 
           <button id="notifications-button" class="notification-button librarian-only" type="button" aria-label="Abrir notificações">
@@ -550,6 +520,7 @@
                 <button data-route="perfil" class="function-button" type="button"><span>☺</span><div><strong>Meu perfil</strong><small>Foto, dados e senha</small></div><b>›</b></button>
               </div>
             </section>
+            <div class="home-mission" aria-label="Nossa missão"><span class="home-mission__books">▤▤▤</span><span class="home-mission__heart">♥</span><div><strong>Nossa missão</strong><b>Abrir histórias, transformar vidas.</b><small>Conte com a gente!</small></div><span class="home-mission__book">▤</span></div>
           </section>
         </section>
 
@@ -2697,7 +2668,7 @@
       if (app && app.classList.contains("is-hidden") && auth) auth.classList.remove("is-hidden");
     }, 7000);
   </script>
-  <script src="./script.js?v=20260902-fastlogin"></script>
+  <script src="./script.js?v=20260902-loginfix"></script>
 
 </body>
 
