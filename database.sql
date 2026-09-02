@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
   ON users (LOWER(email));
@@ -750,9 +751,6 @@ VALUES
   ('Dicionários e Referência')
 ON CONFLICT (name) DO NOTHING;
 
--- Contas iniciais para apresentação.
--- Em uma instalação nova, cria as senhas abaixo.
--- Se a conta já existir, preserva a senha alterada pelo administrador.
 INSERT INTO users (name, email, password_hash, password_changed_at, role, active) VALUES
   (
     'Administrador BookShare',
@@ -1085,11 +1083,9 @@ FROM classes c WHERE c.name = '3º B' AND c.shift = 'Manhã' AND c.school_year =
 ON CONFLICT (registration_number) DO UPDATE SET
   full_name = EXCLUDED.full_name, class_id = EXCLUDED.class_id, roll_number = EXCLUDED.roll_number, guardian_contact = EXCLUDED.guardian_contact, active = TRUE, updated_at = NOW();
 
--- Fotografias de demonstração dos alunos. Substitua pelas fotos autorizadas da escola no painel.
 
 
 
--- Fotografias demonstrativas reais para os 60 alunos.
 UPDATE students SET photo_url = 'https://randomuser.me/api/portraits/women/3.jpg' WHERE registration_number = '2026A001';
 UPDATE students SET photo_url = 'https://randomuser.me/api/portraits/men/10.jpg' WHERE registration_number = '2026A002';
 UPDATE students SET photo_url = 'https://randomuser.me/api/portraits/women/17.jpg' WHERE registration_number = '2026A003';
@@ -2044,8 +2040,6 @@ ON CONFLICT (inventory_code) DO NOTHING;
 
 
 
--- As capas SVG de demonstração são removidas para que a aplicação carregue
--- automaticamente capas reais pelo Google Books, pesquisando título e autor.
 UPDATE books
 SET cover_url = NULL,
     updated_at = NOW()
@@ -2056,7 +2050,6 @@ WHERE isbn LIKE 'BOOKSHARE-%'
     OR cover_url LIKE '%openlibrary.org%'
   );
 
--- Fotografias iniciais dos dois perfis.
 UPDATE users
 SET avatar_url = 'https://randomuser.me/api/portraits/men/32.jpg',
     updated_at = NOW()
@@ -2067,10 +2060,6 @@ SET avatar_url = 'https://randomuser.me/api/portraits/women/44.jpg',
     updated_at = NOW()
 WHERE email = 'biblioteca@bookshare.com';
 
--- ============================================================================
--- BOOKSHARE V36 — INTEGRAÇÃO FINAL
--- Escolas, vínculos de perfil, capas manuais e catálogo demonstrativo de 50 livros.
--- ============================================================================
 
 CREATE TABLE IF NOT EXISTS schools (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2153,7 +2142,6 @@ SET school_id = (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1),
     updated_at = NOW()
 WHERE school_id IS NULL;
 
--- Garante que as duas contas oficiais não sejam misturadas.
 UPDATE users
 SET email = LOWER(TRIM(email)),
     role = 'admin'::user_role,
@@ -2174,7 +2162,6 @@ SET email = LOWER(TRIM(email)),
     updated_at = NOW()
 WHERE LOWER(TRIM(email)) = 'biblioteca@bookshare.com';
 
--- Livro solicitado que não existia no catálogo original.
 INSERT INTO books (
   title, author, isbn, publisher, publication_year, category_id, shelf,
   description, cover_url, cover_source, cover_checked_at, school_id, active
@@ -2216,7 +2203,6 @@ FROM books
 WHERE isbn = 'BOOKSHARE-101'
 ON CONFLICT (inventory_code) DO NOTHING;
 
--- Capas reais enviadas pelo usuário. O marcador manual-upload impede substituição automática.
 UPDATE books
 SET cover_url = 'data:image/jpeg;base64,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',
     cover_source = 'manual-upload',
@@ -2259,7 +2245,6 @@ SET cover_url = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxMT
     updated_at = NOW()
 WHERE LOWER(TRIM(title)) = LOWER(TRIM('Quarto de Despejo'));
 
--- Mantém exatamente 50 títulos demonstrativos ativos no catálogo.
 UPDATE books
 SET active = CASE
   WHEN title IN (
@@ -2319,7 +2304,6 @@ END,
 updated_at = NOW()
 WHERE isbn LIKE 'BOOKSHARE-%';
 
--- Conferência final da instalação.
 DO $$
 DECLARE
   active_demo_count INTEGER;
@@ -2334,5 +2318,119 @@ BEGIN
   END IF;
 END
 $$;
+
+COMMIT;
+
+BEGIN;
+
+INSERT INTO schools (name, code, address, contact_email, phone, active)
+VALUES
+  ('Escola Municipal Monte Verde', 'EM-MONTE-VERDE', 'Rua das Acácias, 120', 'biblioteca.monteverde@escola.local', '(41) 3333-2101', TRUE),
+  ('Colégio Estadual Vila Nova', 'CE-VILA-NOVA', 'Avenida das Nações, 845', 'biblioteca.vilanova@escola.local', '(41) 3333-2102', TRUE),
+  ('Escola Municipal Paulo Freire', 'EM-PAULO-FREIRE', 'Rua do Saber, 77', 'biblioteca.paulofreire@escola.local', '(41) 3333-2103', TRUE),
+  ('Colégio Estadual Jardim das Flores', 'CE-JARDIM-FLORES', 'Alameda das Flores, 410', 'biblioteca.jardimflores@escola.local', '(41) 3333-2104', TRUE)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  address = EXCLUDED.address,
+  contact_email = EXCLUDED.contact_email,
+  phone = EXCLUDED.phone,
+  active = TRUE,
+  updated_at = NOW();
+
+WITH principal_school AS (
+  SELECT id
+  FROM schools
+  WHERE code = 'PRINCIPAL'
+  LIMIT 1
+),
+active_classes AS (
+  SELECT
+    c.id,
+    ROW_NUMBER() OVER (ORDER BY c.school_year DESC, c.name, c.shift) AS rn,
+    COUNT(*) OVER () AS total_classes
+  FROM classes c
+  JOIN principal_school ps ON c.school_id = ps.id
+  WHERE c.active = TRUE
+),
+current_students AS (
+  SELECT COUNT(*)::INT AS total
+  FROM students
+),
+sequence AS (
+  SELECT generate_series(total + 1, 400) AS n
+  FROM current_students
+),
+prepared AS (
+  SELECT
+    seq.n,
+    ac.id AS class_id,
+    ps.id AS school_id,
+    (ARRAY[
+      'Ana','Beatriz','Camila','Carolina','Clara','Eduarda','Elisa','Fernanda','Gabriela','Helena',
+      'Isabela','Júlia','Larissa','Laura','Letícia','Lívia','Luana','Mariana','Melissa','Natália',
+      'Arthur','Bernardo','Bruno','Caio','Davi','Enzo','Felipe','Gabriel','Guilherme','Gustavo',
+      'Henrique','João','Leonardo','Lucas','Mateus','Miguel','Pedro','Rafael','Samuel','Vinícius'
+    ])[1 + ((seq.n - 1) % 40)] AS first_name,
+    (ARRAY[
+      'Almeida','Alves','Barbosa','Cardoso','Carvalho','Costa','Ferreira','Gomes','Lima','Martins',
+      'Mendes','Monteiro','Moreira','Nascimento','Oliveira','Pereira','Ribeiro','Rocha','Rodrigues','Santos',
+      'Silva','Soares','Souza','Teixeira','Vieira'
+    ])[1 + ((seq.n * 7 - 1) % 25)] AS last_name_1,
+    (ARRAY[
+      'Almeida','Barros','Batista','Campos','Correia','Dias','Duarte','Freitas','Macedo','Machado',
+      'Marques','Melo','Moraes','Nunes','Pires','Ramos','Reis','Rezende','Sales','Tavares'
+    ])[1 + ((seq.n * 11 - 1) % 20)] AS last_name_2
+  FROM sequence seq
+  CROSS JOIN principal_school ps
+  JOIN active_classes ac
+    ON ac.rn = 1 + ((seq.n - 1) % ac.total_classes)
+)
+INSERT INTO students (
+  full_name,
+  registration_number,
+  class_id,
+  roll_number,
+  guardian_contact,
+  notes,
+  active,
+  school_id
+)
+SELECT
+  first_name || ' ' || last_name_1 || ' ' || last_name_2,
+  'BS2026-' || LPAD(n::TEXT, 4, '0'),
+  class_id,
+  1 + ((n - 1) % 40),
+  '(41) 9' || LPAD((10000000 + ((n * 7919) % 89999999))::TEXT, 8, '0'),
+  CASE
+    WHEN n % 17 = 0 THEN 'Participa do clube de leitura.'
+    WHEN n % 13 = 0 THEN 'Responsável prefere contato por telefone.'
+    WHEN n % 11 = 0 THEN 'Aluno frequente da biblioteca.'
+    ELSE 'Aluno de demonstração BookShare V2.'
+  END,
+  TRUE,
+  school_id
+FROM prepared
+ON CONFLICT (registration_number) DO NOTHING;
+
+CREATE INDEX IF NOT EXISTS students_school_active_name_idx
+  ON students (school_id, active, LOWER(full_name));
+
+CREATE INDEX IF NOT EXISTS students_registration_search_idx
+  ON students (LOWER(registration_number));
+
+CREATE INDEX IF NOT EXISTS books_school_active_title_idx
+  ON books (school_id, active, LOWER(title));
+
+CREATE INDEX IF NOT EXISTS books_author_search_idx
+  ON books (LOWER(author));
+
+CREATE INDEX IF NOT EXISTS book_copies_book_status_idx
+  ON book_copies (book_id, status);
+
+CREATE INDEX IF NOT EXISTS loans_student_status_due_idx
+  ON loans (student_id, status, due_date);
+
+CREATE INDEX IF NOT EXISTS reservations_book_status_created_idx
+  ON reservations (book_id, status, created_at);
 
 COMMIT;
