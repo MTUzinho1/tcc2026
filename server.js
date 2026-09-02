@@ -3306,6 +3306,8 @@ async function ensureRuntimeSchema() {
 
     `ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS photo_url TEXT`,
 
+    `ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS student_status VARCHAR(20)`,
+
     `ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS school_id UUID`,
 
     `ALTER TABLE IF EXISTS classes ADD COLUMN IF NOT EXISTS school_id UUID`,
@@ -3321,6 +3323,8 @@ async function ensureRuntimeSchema() {
     `CREATE INDEX IF NOT EXISTS users_school_id_idx ON users (school_id)`,
 
     `CREATE INDEX IF NOT EXISTS students_school_id_idx ON students (school_id)`,
+
+    `CREATE INDEX IF NOT EXISTS students_student_status_idx ON students (student_status)`,
 
     `CREATE INDEX IF NOT EXISTS classes_school_id_idx ON classes (school_id)`,
 
@@ -3344,7 +3348,13 @@ async function ensureRuntimeSchema() {
 
   }
 
- 
+  await pool.query(`
+    UPDATE students
+    SET student_status = CASE WHEN active = FALSE THEN 'archived' ELSE 'active' END
+    WHERE student_status IS NULL OR student_status NOT IN ('active', 'blocked', 'archived')
+  `);
+  await pool.query(`ALTER TABLE students ALTER COLUMN student_status SET DEFAULT 'active'`);
+  await pool.query(`ALTER TABLE students ALTER COLUMN student_status SET NOT NULL`);
 
   const settings = await getSettings();
 
@@ -6037,6 +6047,8 @@ app.get("/api/students", authenticate, asyncRoute(async (_req, res) => {
 
       s.active,
 
+      s.student_status,
+
       s.created_at,
 
       s.updated_at,
@@ -6061,7 +6073,7 @@ app.get("/api/students", authenticate, asyncRoute(async (_req, res) => {
 
     GROUP BY s.id, c.id
 
-    ORDER BY s.active DESC, s.full_name
+    ORDER BY CASE s.student_status WHEN 'active' THEN 1 WHEN 'blocked' THEN 2 ELSE 3 END, s.full_name
 
   `);
 
@@ -6377,7 +6389,7 @@ app.delete("/api/students/:id", authenticate, requireRole("admin"), asyncRoute(a
 
     const result = await client.query(
 
-      `UPDATE students SET active = FALSE, updated_at = NOW()
+      `UPDATE students SET active = FALSE, student_status = 'archived', updated_at = NOW()
 
        WHERE id = $1
 
@@ -6413,7 +6425,14 @@ app.delete("/api/students/:id", authenticate, requireRole("admin"), asyncRoute(a
 
 app.put("/api/students/:id/status", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
-  const active = cleanBoolean(req.body.active);
+  const requestedStatus = String(req.body.status || "").trim().toLowerCase();
+  const fallbackActive = req.body.active === undefined ? null : cleanBoolean(req.body.active);
+  const nextStatus = ["active", "blocked", "archived"].includes(requestedStatus)
+    ? requestedStatus
+    : fallbackActive === true ? "active" : fallbackActive === false ? "blocked" : null;
+
+  if (!nextStatus) throw httpError(400, "Situação do aluno inválida.");
+  if (nextStatus === "archived" && req.user.role !== "admin") throw httpError(403, "Somente administradores podem arquivar alunos.");
 
   const client = await pool.connect();
 
@@ -6421,21 +6440,25 @@ app.put("/api/students/:id/status", authenticate, requireRole("admin", "libraria
 
     await client.query("BEGIN");
 
+    const current = await client.query("SELECT id, full_name, student_status FROM students WHERE id = $1 FOR UPDATE", [req.params.id]);
+    if (!current.rows[0]) throw httpError(404, "Aluno não encontrado.");
+    if (current.rows[0].student_status === "archived" && nextStatus === "active" && req.user.role !== "admin") {
+      throw httpError(403, "Somente administradores podem reativar um cadastro arquivado.");
+    }
+
     const result = await client.query(
 
-      `UPDATE students SET active = $1, updated_at = NOW()
+      `UPDATE students SET active = $1, student_status = $2, updated_at = NOW()
 
-       WHERE id = $2
+       WHERE id = $3
 
        RETURNING *`,
 
-      [active, req.params.id]
+      [nextStatus === "active", nextStatus, req.params.id]
 
     );
 
-    if (!result.rows[0]) throw httpError(404, "Aluno não encontrado.");
-
-    await audit(client, req, active ? "reactivate" : "archive", "student", req.params.id, { active });
+    await audit(client, req, nextStatus === "active" ? "reactivate" : nextStatus === "blocked" ? "block" : "archive", "student", req.params.id, { student_status: nextStatus });
 
     await client.query("COMMIT");
 
