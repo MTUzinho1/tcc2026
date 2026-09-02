@@ -17,8 +17,12 @@
   <meta name="description" content="BookShare — sistema completo de gestão para biblioteca escolar.">
 
   <title>BookShare | Gestão de Biblioteca Escolar</title>
-<link rel="stylesheet" href="style.css?v=20260901-novo">
+<link rel="stylesheet" href="./style.css?v=20260902-final">
 
+
+  <style id="bookshare-login-fallback">
+    html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#163a34;background:#f3f8f5}*{box-sizing:border-box}.is-hidden{display:none!important}.auth-view{min-height:100vh;display:grid;place-items:center;padding:24px}.login-shell{width:min(520px,calc(100% - 24px));background:#fff;border:1px solid #dce7e1;border-radius:28px;box-shadow:0 24px 70px rgba(20,58,38,.12);overflow:hidden}.login-intro{display:none}.login-panel{min-height:610px;padding:52px;display:flex;flex-direction:column;justify-content:center}.login-panel__mobile-brand{display:flex;align-items:center;gap:12px;margin-bottom:34px;font-weight:800}.login-panel__mobile-brand span{width:50px;height:50px;display:grid;place-items:center;border-radius:15px;background:#e6f6ed;color:#1d6659}.login-panel__heading>span{display:none}.login-panel__heading h2{margin:0;color:#173f3a;font-size:2.15rem;letter-spacing:-.04em}.login-panel__heading p{margin:10px 0 0;color:#66756f}.login-form{display:grid;gap:20px;margin-top:32px}.login-field{display:grid;gap:8px;font-weight:700}.login-input-wrap{min-height:56px;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid #d7e3de;border-radius:14px;background:#fbfdfc}.login-input-wrap input{width:100%;border:0;outline:0;background:transparent;font:inherit}.login-show-password{border:0;background:transparent;color:#1d6659;font-weight:800;cursor:pointer}.login-submit{min-height:58px;border:0;border-radius:15px;background:#1d6659;color:#fff;font-size:1rem;font-weight:800;cursor:pointer}.login-help{margin:26px 0 0;padding:16px;border-radius:14px;background:#f4f8f6;color:#567068;text-align:center}.app-loading{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;align-content:center;gap:10px;background:#f3f8f5;color:#173f3a}.app-loading.is-hidden{display:none!important}@media(max-width:560px){.auth-view{padding:0}.login-shell{width:100%;min-height:100vh;border:0;border-radius:0}.login-panel{min-height:100vh;padding:30px 22px}.login-panel__heading h2{font-size:1.85rem}}
+  </style>
 </head>
 
 <body>
@@ -485,7 +489,7 @@
             <section class="all-functions">
               <div class="all-functions__heading"><span class="all-functions__mark">▦</span><div><h3>Todas as funções</h3><p>Acesse qualquer área do sistema</p></div></div>
               <div class="function-grid">
-                <button data-route="atendimento" class="function-button librarian-only" type="button"><span>⌁</span><div><strong>Atendimento</strong><small>Empréstimo e devolução</small></div><b>›</b></button>
+                <button data-route="atendimento" class="function-button" type="button"><span>⌁</span><div><strong>Atendimento</strong><small>Empréstimo e devolução</small></div><b>›</b></button>
                 <button data-route="alunos" class="function-button" type="button"><span>♙</span><div><strong>Alunos</strong><small>Gerenciar alunos</small></div><b>›</b></button>
                 <button data-route="livros" class="function-button" type="button"><span>▤</span><div><strong>Livros</strong><small>Gerenciar livros</small></div><b>›</b></button>
                 <button data-route="exemplares" class="function-button" type="button"><span>▥</span><div><strong>Exemplares</strong><small>Gerenciar exemplares</small></div><b>›</b></button>
@@ -501,7 +505,6 @@
                 <button data-route="perfil" class="function-button" type="button"><span>☺</span><div><strong>Meu perfil</strong><small>Foto, dados e senha</small></div><b>›</b></button>
               </div>
             </section>
-            <footer class="home-footer-note"><span>♥</span><div><strong>BookShare</strong><small>Biblioteca organizada, atendimento mais simples.</small></div></footer>
           </section>
         </section>
 
@@ -953,6 +956,8 @@
               <option value="active">Alunos ativos</option>
 
               <option value="pending">Com pendência</option>
+
+              <option value="blocked">Bloqueados</option>
 
               <option value="archived">Arquivados</option>
 
@@ -2637,7 +2642,7 @@
 
  
 
-  <script src="script.js?v=20260901-v2full"></script>
+  <script src="./script.js?v=20260902-final"></script>
 
 </body>
 
