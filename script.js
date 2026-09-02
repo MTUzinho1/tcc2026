@@ -11,18 +11,31 @@ function normalizeApiBase(value) {
 }
 
 async function loadApiConfig() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const response = await fetch(`./config.json?v=${Date.now()}`, { cache: "no-store" });
+    const response = await fetch(`./config.json?v=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
     if (!response.ok) return;
     const config = await response.json();
-    API_BASE_URL = normalizeApiBase(config.apiBaseUrl);
+    const configured = normalizeApiBase(config.apiBaseUrl);
+    if (configured) API_BASE_URL = configured;
   } catch (_error) {
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 function apiUrl(path) {
   if (/^https?:\/\//i.test(path)) return path;
   return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function wakeApi() {
+  if (!API_BASE_URL) return;
+  fetch(apiUrl("/api/health"), { cache: "no-store" }).catch(() => {});
 }
 
 const state = {
@@ -181,31 +194,51 @@ async function api(path, options = {}) {
     body = JSON.stringify(body);
   }
 
-  const response = await fetch(apiUrl(path), {
-    method: options.method || "GET",
-    headers,
-    body,
-    signal: options.signal
-  });
+  const isLogin = path === "/api/auth/login";
+  const timeoutMs = Number(options.timeoutMs || (isLogin ? 45000 : 15000));
+  const controller = options.signal ? null : new AbortController();
+  const signal = options.signal || controller.signal;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
-  const raw = await response.text();
-  let payload = {};
   try {
-    payload = raw ? JSON.parse(raw) : {};
-  } catch {
-    payload = { message: raw || "Resposta inválida do servidor." };
-  }
+    const response = await fetch(apiUrl(path), {
+      method: options.method || "GET",
+      headers,
+      body,
+      signal
+    });
 
-  if (response.status === 401) {
-    logout(false);
-    throw new Error(payload.message || "Sua sessão expirou. Entre novamente.");
-  }
+    const raw = await response.text();
+    let payload = {};
+    try {
+      payload = raw ? JSON.parse(raw) : {};
+    } catch {
+      payload = { message: raw || "Resposta inválida do servidor." };
+    }
 
-  if (!response.ok) {
-    throw new Error(payload.message || `Erro ${response.status}.`);
-  }
+    if (response.status === 401) {
+      logout(false);
+      throw new Error(payload.message || "Sua sessão expirou. Entre novamente.");
+    }
 
-  return payload;
+    if (!response.ok) {
+      throw new Error(payload.message || `Erro ${response.status}.`);
+    }
+
+    return payload;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(isLogin
+        ? "O servidor demorou para responder. Aguarde alguns segundos e tente entrar novamente."
+        : "Essa área demorou para responder. Tente novamente.");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("Não foi possível conectar ao servidor. Confira o Render e sua internet.");
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function formObject(form) {
@@ -364,13 +397,23 @@ async function handleLogin(event) {
   const email = $("#login-email").value.trim();
   const password = $("#login-password").value;
 
+  if (!email || !password) {
+    toast("Preencha o e-mail e a senha.", "warning");
+    return;
+  }
+
   button.disabled = true;
-  const original = button.textContent;
-  button.textContent = "Entrando...";
+  const original = button.innerHTML;
+  button.innerHTML = `<span>Entrando...</span><span class="login-submit__spinner" aria-hidden="true"></span>`;
+  const slowTimer = setTimeout(() => {
+    if (button.disabled) button.querySelector("span")?.replaceChildren("Iniciando servidor...");
+  }, 5000);
+
   try {
     const payload = await api("/api/auth/login", {
       method: "POST",
-      body: { email, password }
+      body: { email, password },
+      timeoutMs: 45000
     });
     state.token = payload.token;
     state.user = payload.user;
@@ -380,8 +423,9 @@ async function handleLogin(event) {
   } catch (error) {
     toast(error.message, "error");
   } finally {
+    clearTimeout(slowTimer);
     button.disabled = false;
-    button.textContent = original;
+    button.innerHTML = original;
   }
 }
 
@@ -398,7 +442,7 @@ function logout(showMessage = true) {
 async function restoreSession() {
   if (!state.token) return showAuth();
   try {
-    const payload = await api("/api/auth/me");
+    const payload = await api("/api/auth/me", { timeoutMs: 10000 });
     state.user = payload.user;
     await enterApplication();
   } catch {
@@ -407,18 +451,20 @@ async function restoreSession() {
 }
 
 async function enterApplication() {
-  setLoading(true, "Carregando sua biblioteca...");
   applyRoleUI();
   setUserUI();
-  showApp();
   startClock();
+  showApp();
+  setLoading(false);
 
-  await Promise.allSettled([
+  Promise.allSettled([
     loadReferenceData(),
-    loadNotifications()
-  ]);
-
-  await navigate("dashboard");
+    loadNotifications(),
+    navigate("dashboard")
+  ]).then(results => {
+    const failed = results.find(result => result.status === "rejected");
+    if (failed) toast("Alguns dados demoraram para carregar. Você já pode usar o menu e tentar novamente.", "warning");
+  });
 
   if (state.notificationTimer) clearInterval(state.notificationTimer);
   state.notificationTimer = setInterval(() => {
@@ -2028,7 +2074,50 @@ function setupInitialBookView() {
   $$("button[data-view]", switcher).forEach(button => button.classList.toggle("is-active", button.dataset.view === state.bookView));
 }
 
+
+function setupWelcomeBookCarousel() {
+  const viewport = document.querySelector("[data-book-carousel]");
+  const track = viewport?.querySelector(".welcome-books__track");
+  const prev = document.querySelector("[data-book-carousel-prev]");
+  const next = document.querySelector("[data-book-carousel-next]");
+  if (!viewport || !track) return;
+
+  const step = () => {
+    const card = track.querySelector(".welcome-book");
+    return card ? card.getBoundingClientRect().width + 13 : 115;
+  };
+  const move = direction => {
+    const max = Math.max(0, track.scrollWidth - track.clientWidth);
+    let target = track.scrollLeft + direction * step();
+    if (direction > 0 && target >= max - 4) target = 0;
+    if (direction < 0 && target <= 4) target = max;
+    track.scrollTo({ left: target, behavior: "smooth" });
+  };
+
+  prev?.addEventListener("click", () => move(-1));
+  next?.addEventListener("click", () => move(1));
+
+  let timer = setInterval(() => move(1), 3600);
+  const pause = () => clearInterval(timer);
+  const resume = () => {
+    clearInterval(timer);
+    timer = setInterval(() => move(1), 3600);
+  };
+  viewport.addEventListener("mouseenter", pause);
+  viewport.addEventListener("mouseleave", resume);
+  viewport.addEventListener("focusin", pause);
+  viewport.addEventListener("focusout", resume);
+  document.addEventListener("visibilitychange", () => document.hidden ? pause() : resume());
+}
+
 async function boot() {
+  const bootWatchdog = setTimeout(() => {
+    const loading = $("#app-loading");
+    if (loading && !loading.classList.contains("is-hidden")) {
+      state.user ? showApp() : showAuth();
+    }
+  }, 7000);
+
   setLoading(true);
   bindModalButtons();
   bindFilters();
@@ -2037,7 +2126,10 @@ async function boot() {
   bindPasswordToggle();
   bindKeyboard();
   setupInitialBookView();
+  setupWelcomeBookCarousel();
+  if (!state.token) showAuth();
   await loadApiConfig();
+  wakeApi();
 
   const apiHint = $("#api-connection-hint");
   if (!API_BASE_URL && !["localhost", "127.0.0.1"].includes(location.hostname) && !location.hostname.endsWith(".onrender.com")) {
@@ -2052,7 +2144,8 @@ async function boot() {
   const started = performance.now();
   await restoreSession();
   const elapsed = performance.now() - started;
-  if (elapsed < 450) await new Promise(resolve => setTimeout(resolve, 450 - elapsed));
+  if (elapsed < 250) await new Promise(resolve => setTimeout(resolve, 250 - elapsed));
+  clearTimeout(bootWatchdog);
   setLoading(false);
 }
 
