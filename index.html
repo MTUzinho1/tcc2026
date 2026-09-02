@@ -17,16 +17,7 @@
   <meta name="description" content="BookShare — sistema completo de gestão para biblioteca escolar.">
 
   <title>BookShare | Gestão de Biblioteca Escolar</title>
-
- 
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,600;7..72,700;7..72,800&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="style.css?v=20260627-final">
+<link rel="stylesheet" href="style.css?v=20260901-novo">
 
 </head>
 
@@ -56,289 +47,69 @@
 
  
 
-  <section id="auth-view" class="auth-view is-hidden">
-
-    <div class="auth-showcase">
-
-      <header class="auth-showcase__header">
-
-        <a class="brand brand--light" href="#" aria-label="BookShare">
-
-          <span class="brand__mark">BS</span>
-
-          <span class="brand__copy">
-
-            <strong>BookShare</strong>
-
-            <small>Biblioteca escolar</small>
-
-          </span>
-
-        </a>
-
-      </header>
-
- 
-
-      <div class="auth-showcase__content">
-
-        <p class="eyebrow eyebrow--light">Biblioteca escolar, sem burocracia</p>
-
-        <h1>Clareza para cuidar de cada livro e de cada aluno.</h1>
-
-        <p class="auth-showcase__lead">
-
-          Um espaço de trabalho direto, acolhedor e confiável para registrar empréstimos,
-
-          acompanhar prazos e manter o acervo sempre organizado.
-
-        </p>
-
- 
-
-        <div class="auth-library-panel" aria-label="Visão geral do BookShare">
-
-          <div class="auth-library-panel__visual" aria-hidden="true">
-
-            <svg viewBox="0 0 420 250" role="img">
-
-              <rect x="18" y="18" width="384" height="214" rx="25" fill="#173f3a"/>
-
-              <circle cx="344" cy="68" r="34" fill="#f1cf8e" opacity=".95"/>
-
-              <path d="M53 176h314" stroke="#d8b071" stroke-width="12" stroke-linecap="round"/>
-
-              <rect x="72" y="78" width="42" height="91" rx="7" fill="#e7a25d"/>
-
-              <rect x="120" y="61" width="38" height="108" rx="7" fill="#79b9aa"/>
-
-              <rect x="164" y="88" width="32" height="81" rx="7" fill="#efcf89"/>
-
-              <rect x="202" y="70" width="44" height="99" rx="7" fill="#9dbedb"/>
-
-              <rect x="252" y="91" width="35" height="78" rx="7" fill="#d697aa"/>
-
-              <path d="M289 115c17-12 31-10 41 0v52c-13-8-27-9-41-4v-48Zm82 0c-17-12-31-10-41 0v52c13-8 27-9 41-4v-48Z" fill="#f8f5ec" stroke="#f8f5ec" stroke-width="3" stroke-linejoin="round"/>
-
-              <path d="M330 115v52" stroke="#173f3a" stroke-width="3" stroke-linecap="round"/>
-
-            </svg>
-
-          </div>
-
-          <div class="auth-library-panel__copy">
-
-            <span>ROTINA MAIS LEVE</span>
-
-            <strong>Menos burocracia. Mais tempo para cuidar da biblioteca.</strong>
-
-            <p>Empréstimos, devoluções e organização do acervo em poucos cliques — pensado para facilitar o trabalho das equipes da rede pública.</p>
-
-          </div>
-
-        </div>
-
- 
-
-<div class="auth-benefits">
-
-          <article>
-
-            <span class="auth-benefits__icon" aria-hidden="true">
-
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 6.5h10a3 3 0 0 1 3 3V18H7a3 3 0 0 0-3 3V6.5Z"/><path d="M17 9.5h1a2 2 0 0 1 2 2V18h-3"/><path d="M7 10h6M7 13h5"/></svg>
-
-            </span>
-
-            <div>
-
-              <strong>Empréstimos sem confusão</strong>
-
-              <p>O sistema escolhe o exemplar disponível e atualiza o acervo.</p>
-
-            </div>
-
-          </article>
-
-          <article>
-
-            <span class="auth-benefits__icon" aria-hidden="true">
-
-              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/><path d="M18.5 5.5 20 4"/></svg>
-
-            </span>
-
-            <div>
-
-              <strong>Atrasos visíveis</strong>
-
-              <p>Acompanhe dias de atraso, contatos e histórico de cobrança.</p>
-
-            </div>
-
-          </article>
-
-          <article>
-
-            <span class="auth-benefits__icon" aria-hidden="true">
-
-              <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="12" height="14" rx="2"/><rect x="17" y="8" width="4" height="8" rx="1"/><path d="M7 16h4M6 9h6"/></svg>
-
-            </span>
-
-            <div>
-
-              <strong>Funciona em qualquer tela</strong>
-
-              <p>Computador, tablet e celular com a mesma organização.</p>
-
-            </div>
-
-          </article>
-
-        </div>
-
-      </div>
-
- 
-
-      <footer class="auth-showcase__footer">
-
-        <span>BookShare © 2026</span>
-
-        <span>Organização que acompanha cada história</span>
-
-      </footer>
-
-    </div>
-
- 
-
-    <div class="auth-access">
-
-      <form id="login-form" class="login-card" novalidate>
-
-        <div class="login-card__mobile-brand">
-
-          <span class="brand__mark">BS</span>
-
+  <section id="auth-view" class="auth-view auth-view--clean is-hidden">
+    <main class="login-shell" aria-labelledby="login-title">
+      <section class="login-intro" aria-label="Apresentação do BookShare">
+        <div class="login-brand">
+          <span class="login-brand__mark" aria-hidden="true">BS</span>
           <div>
-
             <strong>BookShare</strong>
-
-            <small>Gestão de Biblioteca</small>
-
+            <small>Gestão de Biblioteca Escolar</small>
           </div>
-
         </div>
 
- 
-
-        <div class="login-card__heading">
-
-          <p class="eyebrow">Acesso autorizado</p>
-
-          <h2>Bem-vinda de volta</h2>
-
-          <p>Entre com a conta criada pelo administrador.</p>
-
+        <div class="login-intro__content">
+          <span class="login-kicker">Biblioteca escolar</span>
+          <h1>Sua biblioteca, organizada de forma simples.</h1>
+          <p>Encontre alunos e livros, registre empréstimos e acompanhe devoluções em poucos passos.</p>
+          <div class="login-benefits" aria-label="Funções principais">
+            <span><i>✓</i> Empréstimos e devoluções rápidas</span>
+            <span><i>✓</i> Consulta de alunos e livros</span>
+            <span><i>✓</i> Avisos de atrasos e reservas</span>
+          </div>
         </div>
+      </section>
 
- 
-
-        <label class="field">
-
-          <span class="field__label">E-mail</span>
-
-          <span class="input-shell">
-
-            <span class="input-shell__icon">@</span>
-
-            <input
-
-              id="login-email"
-
-              name="email"
-
-              type="email"
-
-              autocomplete="username"
-
-              placeholder="biblioteca@escola.com"
-
-              required
-
-            >
-
-          </span>
-
-          <small class="field__error"></small>
-
-        </label>
-
- 
-
-        <label class="field">
-
-          <span class="field__label">Senha</span>
-
-          <span class="input-shell">
-
-            <span class="input-shell__icon">●</span>
-
-            <input
-
-              id="login-password"
-
-              name="password"
-
-              type="password"
-
-              autocomplete="current-password"
-
-              placeholder="Digite sua senha"
-
-              minlength="6"
-
-              required
-
-            >
-
-            <button id="toggle-password" class="input-shell__action" type="button" aria-label="Mostrar ou ocultar senha">Mostrar</button>
-
-          </span>
-
-          <small class="field__error"></small>
-
-        </label>
-
- 
-
-        <button id="login-submit" class="button button--primary button--large button--block" type="submit">
-
-          <span>Entrar no BookShare</span>
-
-          <span aria-hidden="true">→</span>
-
-        </button>
-
- 
-
-        <div class="login-help">
-
-          <span>Primeiro acesso ou esqueceu a senha?</span>
-
-          <p>Solicite ao administrador da escola a criação ou redefinição da conta.</p>
-
+      <section class="login-panel">
+        <div class="login-panel__mobile-brand" aria-hidden="true">
+          <span>BS</span><strong>BookShare</strong>
         </div>
+        <header class="login-panel__heading">
+          <span>BookShare</span>
+          <h2 id="login-title">Entrar na biblioteca</h2>
+          <p>Use seu e-mail e sua senha para acessar.</p>
+        </header>
 
-      </form>
+        <form id="login-form" class="login-form" novalidate>
+          <label class="login-field">
+            <span>E-mail</span>
+            <div class="login-input-wrap">
+              <b aria-hidden="true">@</b>
+              <input id="login-email" name="email" type="email" autocomplete="username" placeholder="seuemail@escola.com" required>
+            </div>
+            <small class="field__error"></small>
+          </label>
 
-    </div>
+          <label class="login-field">
+            <span>Senha</span>
+            <div class="login-input-wrap">
+              <b aria-hidden="true">●</b>
+              <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" minlength="6" required>
+              <button id="toggle-password" type="button" class="login-show-password">Mostrar</button>
+            </div>
+            <small class="field__error"></small>
+          </label>
 
+          <button id="login-submit" class="login-submit" type="submit">
+            <span>Entrar</span><span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <p class="login-help">Não consegue entrar? Fale com o administrador da escola.</p>
+        <div id="api-connection-hint" class="api-connection-hint is-hidden"></div>
+      </section>
+    </main>
   </section>
-
- 
 
   <div id="app-view" class="app-shell is-hidden">
 
@@ -410,7 +181,7 @@
 
             <span class="nav-item__icon">⌁</span>
 
-            <span>Balcão rápido</span>
+            <span>Atendimento</span>
 
           </button>
 
@@ -451,6 +222,14 @@
             <span class="nav-item__icon">▤</span>
 
             <span>Livros</span>
+
+          </button>
+
+          <button class="nav-item" data-route="exemplares" type="button">
+
+            <span class="nav-item__icon">▥</span>
+
+            <span>Exemplares</span>
 
           </button>
 
@@ -691,388 +470,41 @@
       <div class="workspace">
 
         <section id="view-dashboard" class="page-view">
-
-          <section class="librarian-home librarian-only librarian-desk librarian-overview">
-
-            <div class="librarian-overview__header">
-
-              <div class="librarian-overview__copy">
-
-                <span class="librarian-overview__label">ATENDIMENTO DA BIBLIOTECA</span>
-
-                <h2 id="librarian-welcome-title">Bom dia, Bibliotecária!</h2>
-
-                <p id="librarian-welcome-message">Confira devoluções, reservas e pendências sem sair da tela inicial.</p>
-
-              </div>
-
-              <button id="librarian-profile-shortcut" class="librarian-overview__profile" type="button" aria-label="Abrir meu perfil">
-
-                <span id="librarian-hero-avatar" class="librarian-overview__avatar">B</span>
-
-                <span>
-
-                  <strong id="librarian-hero-name">Bibliotecária</strong>
-
-                  <small>Meu perfil</small>
-
-                </span>
-
-                <b>→</b>
-
-              </button>
-
-            </div>
-
- 
-
-            <div class="librarian-overview__actions">
-
-              <button class="librarian-task librarian-task--primary" data-open-modal="loan-modal" type="button">
-
-                <span>＋</span><div><strong>Registrar empréstimo</strong><small>Escolher aluno, livro e prazo.</small></div>
-
-              </button>
-
-              <button class="librarian-task" data-open-modal="return-search-modal" type="button">
-
-                <span>↵</span><div><strong>Receber devolução</strong><small>Localizar por aluno ou exemplar.</small></div>
-
-              </button>
-
-              <button class="librarian-task" data-route="pendencias" type="button">
-
-                <span>!</span><div><strong>Ver pendências</strong><small>Atrasos e avisos de cobrança.</small></div>
-
-              </button>
-
-              <button class="librarian-task" data-route="livros" type="button">
-
-                <span>▤</span><div><strong>Consultar livros</strong><small>Disponibilidade e localização.</small></div>
-
-              </button>
-
-            </div>
-
- 
-
-            <div class="librarian-overview__summary">
-
-              <button data-route="emprestimos" type="button"><span>Vencem hoje</span><strong id="librarian-due-today">0</strong></button>
-
-              <button data-route="pendencias" type="button"><span>Em atraso</span><strong id="librarian-overdue">0</strong></button>
-
-              <button data-route="reservas" type="button"><span>Reservas prontas</span><strong id="librarian-ready-reservations">0</strong></button>
-
-            </div>
-
-          </section>
-
- 
-
-          <section class="admin-home admin-only admin-overview">
-
-            <header class="admin-overview__header">
-
-              <div class="admin-overview__identity">
-
-                <span id="admin-hero-avatar" class="admin-overview__avatar">A</span>
-
-                <div>
-
-                  <span class="admin-overview__eyebrow">ADMINISTRAÇÃO DO SISTEMA</span>
-
-                  <h2 id="admin-welcome-title">Painel administrativo</h2>
-
-                  <p id="admin-welcome-message">Gerencie contas, escolas, turmas, alunos, acervo e regras da biblioteca sem misturar tarefas administrativas com o atendimento do balcão.</p>
-
-                  <small><strong id="admin-hero-name">Administrador</strong> · <span id="admin-hero-email">admin@bookshare.com</span></small>
-
-                </div>
-
-              </div>
-
-              <button class="admin-overview__profile-button" data-route="configuracoes" type="button">
-
-                Meu perfil <b>→</b>
-
-              </button>
-
+          <section class="new-home">
+            <header class="new-home__welcome">
+              <div><h2 id="final-welcome-title">Olá!</h2><p>O que você deseja fazer hoje?</p></div>
+              <button class="new-home__profile" data-route="perfil" type="button"><span id="home-profile-avatar">BS</span><span><strong id="home-profile-name">Meu perfil</strong><small id="home-profile-role">Bibliotecária</small></span><b>›</b></button>
             </header>
-
- 
-
-            <div class="admin-overview__actions">
-
-              <button data-open-modal="user-modal" type="button"><span>＋</span><div><strong>Nova conta</strong><small>Criar acesso e vincular à escola.</small></div></button>
-
-              <button data-open-modal="student-modal" type="button"><span>♙</span><div><strong>Novo aluno</strong><small>Registrar matrícula e turma.</small></div></button>
-
-              <button data-open-modal="school-modal" type="button"><span>⌂</span><div><strong>Nova escola</strong><small>Cadastrar uma unidade escolar.</small></div></button>
-
-              <button data-open-modal="book-modal" type="button"><span>▤</span><div><strong>Novo livro</strong><small>Adicionar título e exemplares.</small></div></button>
-
+            <div class="home-primary-actions" aria-label="Ações principais">
+              <button class="home-action home-action--green" data-open-modal="loan-modal" type="button"><span class="home-action__icon">▣</span><strong>Emprestar livro</strong><small>Registrar um novo empréstimo</small><span class="home-action__cta">Iniciar empréstimo <b>→</b></span></button>
+              <button class="home-action home-action--blue" data-open-modal="return-search-modal" type="button"><span class="home-action__icon">↶</span><strong>Devolver livro</strong><small>Registrar uma devolução</small><span class="home-action__cta">Registrar devolução <b>→</b></span></button>
+              <button class="home-action home-action--purple" data-route="alunos" type="button"><span class="home-action__icon">●</span><strong>Pesquisar aluno</strong><small>Localizar matrícula ou aluno</small><span class="home-action__cta">Pesquisar aluno <b>→</b></span></button>
+              <button class="home-action home-action--orange" data-route="livros" type="button"><span class="home-action__icon">▤</span><strong>Pesquisar livro</strong><small>Buscar no catálogo da biblioteca</small><span class="home-action__cta">Pesquisar livro <b>→</b></span></button>
+              <button class="home-action home-action--pink" data-open-modal="reservation-modal" type="button"><span class="home-action__icon">▮</span><strong>Nova reserva</strong><small>Fazer uma nova reserva</small><span class="home-action__cta">Criar reserva <b>→</b></span></button>
             </div>
-
- 
-
-            <div class="admin-overview__stats">
-
-              <button data-route="usuarios" type="button"><span>Funcionárias</span><strong id="admin-total-staff">0</strong><small>Contas ativas</small></button>
-
-              <button data-route="alunos" type="button"><span>Alunos</span><strong id="admin-total-students">0</strong><small>Matrículas ativas</small></button>
-
-              <button data-route="escolas" type="button"><span>Escolas</span><strong id="admin-total-schools">0</strong><small>Unidades ativas</small></button>
-
-              <button data-route="livros" type="button"><span>Livros</span><strong id="admin-total-books">0</strong><small>Títulos no catálogo</small></button>
-
-            </div>
-
+            <section class="all-functions">
+              <div class="all-functions__heading"><span class="all-functions__mark">▦</span><div><h3>Todas as funções</h3><p>Acesse qualquer área do sistema</p></div></div>
+              <div class="function-grid">
+                <button data-route="atendimento" class="function-button librarian-only" type="button"><span>⌁</span><div><strong>Atendimento</strong><small>Empréstimo e devolução</small></div><b>›</b></button>
+                <button data-route="alunos" class="function-button" type="button"><span>♙</span><div><strong>Alunos</strong><small>Gerenciar alunos</small></div><b>›</b></button>
+                <button data-route="livros" class="function-button" type="button"><span>▤</span><div><strong>Livros</strong><small>Gerenciar livros</small></div><b>›</b></button>
+                <button data-route="exemplares" class="function-button" type="button"><span>▥</span><div><strong>Exemplares</strong><small>Gerenciar exemplares</small></div><b>›</b></button>
+                <button data-route="emprestimos" class="function-button" type="button"><span>⇄</span><div><strong>Empréstimos</strong><small>Histórico e ativos</small></div><b>›</b></button>
+                <button data-route="reservas" class="function-button" type="button"><span>▮</span><div><strong>Reservas</strong><small>Gerenciar reservas</small></div><b>›</b></button>
+                <button data-route="pendencias" class="function-button" type="button"><span>!</span><div><strong>Pendências</strong><small>Atrasos e cobranças</small></div><b>›</b></button>
+                <button data-route="turmas" class="function-button" type="button"><span>▦</span><div><strong>Turmas</strong><small>Gerenciar turmas</small></div><b>›</b></button>
+                <button data-route="relatorios" class="function-button" type="button"><span>▥</span><div><strong>Relatórios</strong><small>Relatórios e estatísticas</small></div><b>›</b></button>
+                <button data-route="atividades" class="function-button admin-only" type="button"><span>◷</span><div><strong>Atividades</strong><small>Histórico do sistema</small></div><b>›</b></button>
+                <button data-route="usuarios" class="function-button admin-only" type="button"><span>♟</span><div><strong>Usuários</strong><small>Gerenciar contas</small></div><b>›</b></button>
+                <button data-route="escolas" class="function-button admin-only" type="button"><span>⌂</span><div><strong>Escolas</strong><small>Unidades escolares</small></div><b>›</b></button>
+                <button data-route="configuracoes" class="function-button admin-only" type="button"><span>⚙</span><div><strong>Configurações</strong><small>Configurar o sistema</small></div><b>›</b></button>
+                <button data-route="perfil" class="function-button" type="button"><span>☺</span><div><strong>Meu perfil</strong><small>Foto, dados e senha</small></div><b>›</b></button>
+              </div>
+            </section>
+            <footer class="home-footer-note"><span>♥</span><div><strong>BookShare</strong><small>Biblioteca organizada, atendimento mais simples.</small></div></footer>
           </section>
-
- 
-
-          <div class="metric-grid librarian-only">
-
-            <article class="metric-card">
-
-              <div class="metric-card__top">
-
-                <span class="metric-card__icon metric-card__icon--green">▤</span>
-
-                <span class="trend trend--up">Acervo</span>
-
-              </div>
-
-              <strong id="metric-total-titles">0</strong>
-
-              <span>títulos cadastrados</span>
-
-              <small id="metric-total-copies">0 exemplares no total</small>
-
-            </article>
-
- 
-
-            <article class="metric-card">
-
-              <div class="metric-card__top">
-
-                <span class="metric-card__icon metric-card__icon--blue">⇄</span>
-
-                <span id="metric-due-today-badge" class="trend">0 hoje</span>
-
-              </div>
-
-              <strong id="metric-active-loans">0</strong>
-
-              <span>empréstimos ativos</span>
-
-              <small id="metric-due-soon">0 vencendo em breve</small>
-
-            </article>
-
- 
-
-            <article class="metric-card metric-card--attention">
-
-              <div class="metric-card__top">
-
-                <span class="metric-card__icon metric-card__icon--orange">!</span>
-
-                <span class="trend trend--danger">Atenção</span>
-
-              </div>
-
-              <strong id="metric-overdue-loans">0</strong>
-
-              <span>devoluções atrasadas</span>
-
-              <small id="metric-overdue-detail">Nenhuma cobrança necessária</small>
-
-            </article>
-
- 
-
-            <article class="metric-card">
-
-              <div class="metric-card__top">
-
-                <span class="metric-card__icon metric-card__icon--purple">♙</span>
-
-                <span class="trend">Comunidade</span>
-
-              </div>
-
-              <strong id="metric-active-students">0</strong>
-
-              <span>alunos ativos</span>
-
-              <small id="metric-active-classes">0 turmas cadastradas</small>
-
-            </article>
-
-          </div>
-
- 
-
-          <div id="dashboard-alerts" class="dashboard-alerts librarian-only"></div>
-
- 
-
-          <div class="dashboard-layout librarian-only">
-
-            <article class="panel panel--chart admin-only">
-
-              <div class="panel__header">
-
-                <div>
-
-                  <p class="eyebrow">Últimos 30 dias</p>
-
-                  <h2>Movimentação da biblioteca</h2>
-
-                </div>
-
-                <div class="chart-legend">
-
-                  <span><i class="chart-legend__loans"></i>Empréstimos</span>
-
-                  <span><i class="chart-legend__returns"></i>Devoluções</span>
-
-                </div>
-
-              </div>
-
-              <div class="chart-wrap">
-
-                <canvas id="circulation-chart" height="290"></canvas>
-
-              </div>
-
-            </article>
-
- 
-
-            <article class="panel panel--attention-list">
-
-              <div class="panel__header">
-
-                <div>
-
-                  <p class="eyebrow">Próximos prazos</p>
-
-                  <h2>Devoluções de hoje</h2>
-
-                </div>
-
-                <button class="text-button" data-route="emprestimos" type="button">Ver todos</button>
-
-              </div>
-
-              <div id="dashboard-due-list" class="compact-list"></div>
-
-            </article>
-
- 
-
-            <article class="panel panel--popular admin-only">
-
-              <div class="panel__header">
-
-                <div>
-
-                  <p class="eyebrow">Preferências</p>
-
-                  <h2>Mais procurados</h2>
-
-                </div>
-
-                <button class="text-button" data-route="relatorios" type="button">Relatório</button>
-
-              </div>
-
-              <div id="dashboard-popular-books" class="popular-list"></div>
-
-            </article>
-
- 
-
-            <article class="panel panel--quick-actions">
-
-              <div class="panel__header">
-
-                <div>
-
-                  <p class="eyebrow">Acesso rápido</p>
-
-                  <h2>O que deseja fazer?</h2>
-
-                </div>
-
-              </div>
-
-              <div class="quick-action-grid">
-
-                <button class="quick-action-card" data-open-modal="loan-modal" type="button">
-
-                  <span class="quick-action-card__icon">⇄</span>
-
-                  <strong>Novo empréstimo</strong>
-
-                  <small>Registrar retirada de livro</small>
-
-                </button>
-
-                <button class="quick-action-card" data-open-modal="return-search-modal" type="button">
-
-                  <span class="quick-action-card__icon">↩</span>
-
-                  <strong>Registrar devolução</strong>
-
-                  <small>Localizar empréstimo ativo</small>
-
-                </button>
-
-                <button class="quick-action-card admin-only" data-open-modal="book-modal" type="button">
-
-                  <span class="quick-action-card__icon">▤</span>
-
-                  <strong>Novo livro</strong>
-
-                  <small>Adicionar título e exemplares</small>
-
-                </button>
-
-                <button class="quick-action-card" data-route="alunos" type="button">
-
-                  <span class="quick-action-card__icon">♙</span>
-
-                  <strong>Consultar aluno</strong>
-
-                  <small>Ver perfil, turma e histórico</small>
-
-                </button>
-
-                <button class="quick-action-card" data-route="livros" type="button">
-
-                  <span class="quick-action-card__icon">▤</span>
-
-                  <strong>Pesquisar livro</strong>
-
-                  <small>Consultar disponibilidade e detalhes</small>
-
-                </button>
-
-              </div>
-
-            </article>
-
-          </div>
-
         </section>
 
- 
 
         <section id="view-atendimento" class="page-view is-hidden">
 
@@ -1376,7 +808,7 @@
 
               <button class="button button--secondary admin-only" id="sync-covers-button" type="button">↻ Atualizar capas</button>
 
-              <button class="button button--primary admin-only" data-open-modal="book-modal" type="button">＋ Cadastrar livro</button>
+              <button class="button button--primary" data-open-modal="book-modal" type="button">＋ Cadastrar livro</button>
 
             </div>
 
@@ -1900,7 +1332,6 @@
 
               <button data-settings-tab="messages" type="button">Mensagens</button>
 
-              <button data-settings-tab="account" type="button">Minha conta</button>
 
             </aside>
 
@@ -2095,132 +1526,7 @@
                 </label>
 
               </section>
-
- 
-
-              <section id="settings-account" class="settings-section is-hidden">
-
-                <div class="settings-section__heading">
-
-                  <p class="eyebrow">Meu perfil</p>
-
-                  <h2>Foto e identificação</h2>
-
-                  <p>A foto aparece no topo e ajuda a diferenciar a bibliotecária do administrador.</p>
-
-                </div>
-
- 
-
-                <div class="profile-editor">
-
-                  <label class="profile-photo-picker" for="profile-photo-input">
-
-                    <span id="profile-photo-preview" class="profile-photo-preview">BS</span>
-
-                    <strong>Escolher foto</strong>
-
-                    <small>JPG, PNG ou WEBP. A imagem será reduzida antes do envio.</small>
-
-                    <input id="profile-photo-input" type="file" accept="image/png,image/jpeg,image/webp" hidden>
-
-                  </label>
-
-                  <div class="profile-editor__fields">
-
-                    <label class="field">
-
-                      <span class="field__label">Nome exibido</span>
-
-                      <input id="profile-name-input" type="text" maxlength="120">
-
-                    </label>
-
-                    <label class="field">
-
-                      <span class="field__label">E-mail da conta</span>
-
-                      <input id="profile-email-input" type="email" readonly>
-
-                    </label>
-
-                    <label class="field">
-
-                      <span class="field__label">Telefone</span>
-
-                      <input id="profile-phone-input" type="text" maxlength="40" placeholder="(41) 99999-9999">
-
-                    </label>
-
-                    <div class="profile-role-card">
-
-                      <span id="profile-role-icon">B</span>
-
-                      <div><strong id="profile-role-title">Bibliotecária</strong><small id="profile-role-description">Atendimento e circulação do acervo.</small></div>
-
-                    </div>
-
-                    <div class="profile-context-grid">
-
-                      <div><span>Escola</span><strong id="profile-school-name">Biblioteca Escolar</strong></div>
-
-                      <div><span>Cargo</span><strong id="profile-job-title">Bibliotecária</strong></div>
-
-                      <div><span>Telefone</span><strong id="profile-phone">Não informado</strong></div>
-
-                    </div>
-
-                    <button id="save-profile-button" class="button button--primary" type="button">Salvar meu perfil</button>
-
-                  </div>
-
-                </div>
-
- 
-
-                <div class="settings-divider"></div>
-
- 
-
-                <div class="settings-section__heading">
-
-                  <p class="eyebrow">Segurança</p>
-
-                  <h2>Alterar minha senha</h2>
-
-                  <p>A senha é atualizada no servidor e armazenada de forma criptografada.</p>
-
-                </div>
-
- 
-
-                <div class="form-grid">
-
-                  <label class="field">
-
-                    <span class="field__label">Senha atual</span>
-
-                    <input id="current-password" type="password" autocomplete="current-password">
-
-                  </label>
-
-                  <label class="field">
-
-                    <span class="field__label">Nova senha</span>
-
-                    <input id="new-password" type="password" minlength="8" autocomplete="new-password">
-
-                  </label>
-
-                </div>
-
-                <button id="change-own-password-button" class="button button--secondary" type="button">Alterar senha</button>
-
-              </section>
-
- 
-
-              <div class="settings-form__footer">
+<div class="settings-form__footer">
 
                 <span id="settings-save-status">As alterações ainda não foram salvas.</span>
 
@@ -2234,7 +1540,18 @@
 
         </section>
 
-      </div>
+              <section id="view-perfil" class="page-view is-hidden">
+          <div class="profile-page">
+            <header class="profile-page__header"><button class="profile-back" data-route="dashboard" type="button">← Voltar para o início</button><div><p>Minha conta</p><h2>Meu perfil</h2><span>Atualize seus dados de forma simples.</span></div></header>
+            <div class="profile-main-card">
+              <div class="profile-identity"><label class="profile-photo-picker profile-photo-picker--new" for="profile-photo-input"><span id="profile-photo-preview" class="profile-photo-preview">BS</span><strong>Alterar foto</strong><small>JPG, PNG ou WEBP</small><input id="profile-photo-input" type="file" accept="image/png,image/jpeg,image/webp" hidden></label><div class="profile-identity__text"><strong id="profile-role-title">Bibliotecária</strong><span id="profile-job-title">Bibliotecária</span><small id="profile-school-name">Biblioteca Escolar</small></div></div>
+              <div class="profile-fields"><label class="field"><span class="field__label">Nome</span><input id="profile-name-input" type="text" maxlength="120"></label><label class="field"><span class="field__label">E-mail</span><input id="profile-email-input" type="email" readonly></label><label class="field"><span class="field__label">Telefone</span><input id="profile-phone-input" type="text" maxlength="40" placeholder="(00) 00000-0000"></label><div class="profile-info-box"><span>Perfil de acesso</span><strong id="profile-role-description">Atendimento e gestão da biblioteca</strong></div><div class="profile-info-box"><span>Telefone atual</span><strong id="profile-phone">Não informado</strong></div><button id="save-profile-button" class="profile-save-button" type="button">Salvar meu perfil</button></div>
+            </div>
+            <section class="profile-security-card"><div><p>Segurança</p><h3>Alterar senha</h3><span>Use uma senha com pelo menos 8 caracteres.</span></div><div class="profile-password-fields"><label class="field"><span class="field__label">Senha atual</span><input id="current-password" type="password" autocomplete="current-password"></label><label class="field"><span class="field__label">Nova senha</span><input id="new-password" type="password" minlength="8" autocomplete="new-password"></label><button id="change-own-password-button" class="button button--secondary" type="button">Alterar senha</button></div></section>
+          </div>
+        </section>
+
+</div>
 
     </main>
 
@@ -3320,7 +2637,7 @@
 
  
 
-  <script src="script.js?v=20260627-final"></script>
+  <script src="script.js?v=20260901-v2full"></script>
 
 </body>
 
