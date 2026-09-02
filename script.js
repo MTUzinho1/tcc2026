@@ -1991,7 +1991,27 @@ function bindPageActions() {
   $("#notification-panel-close")?.addEventListener("click", () => toggleNotificationPanel(false));
   $("#refresh-button")?.addEventListener("click", () => navigate(state.route));
   $("#sidebar-profile-button")?.addEventListener("click", () => navigate("perfil"));
-  $("#topbar-profile")?.addEventListener("click", () => navigate("perfil"));
+  const topbarProfile = $("#topbar-profile");
+  const accountMenu = $("#account-menu");
+  const closeAccountMenu = () => {
+    accountMenu?.classList.add("is-hidden");
+    topbarProfile?.setAttribute("aria-expanded", "false");
+  };
+  topbarProfile?.addEventListener("click", event => {
+    event.stopPropagation();
+    const willOpen = accountMenu?.classList.contains("is-hidden");
+    accountMenu?.classList.toggle("is-hidden", !willOpen);
+    topbarProfile.setAttribute("aria-expanded", String(Boolean(willOpen)));
+  });
+  $("#account-profile-button")?.addEventListener("click", () => { closeAccountMenu(); navigate("perfil"); });
+  $("#account-switch-button")?.addEventListener("click", () => { closeAccountMenu(); logout(false); toast("Escolha a conta para entrar."); });
+  $("#account-logout-button")?.addEventListener("click", () => { closeAccountMenu(); logout(true); });
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".topbar-account")) closeAccountMenu();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeAccountMenu();
+  });
   $("#librarian-profile-shortcut")?.addEventListener("click", () => navigate("perfil"));
   $("#global-search-input")?.addEventListener("input", debounce(globalSearch, 180));
 
