@@ -12,7 +12,7 @@ function normalizeApiBase(value) {
 
 async function loadApiConfig() {
   try {
-    const response = await fetch(`config.json?v=${Date.now()}`, { cache: "no-store" });
+    const response = await fetch(`./config.json?v=${Date.now()}`, { cache: "no-store" });
     if (!response.ok) return;
     const config = await response.json();
     API_BASE_URL = normalizeApiBase(config.apiBaseUrl);
@@ -123,6 +123,20 @@ function number(value) {
 function statusBadge(label, type = "default") {
   return `<span class="status-badge status-badge--${escapeHTML(type)}">${escapeHTML(label)}</span>`;
 }
+
+function installImageFallbacks() {
+  document.addEventListener("error", event => {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement) || image.dataset.fallbackApplied === "1") return;
+    image.dataset.fallbackApplied = "1";
+    const holder = image.closest(".book-card__cover, .table-book__cover, .book-detail-cover, .popular-item__cover");
+    if (!holder) return;
+    image.remove();
+    if (!holder.textContent.trim()) holder.innerHTML = `<span aria-hidden="true">▤</span>`;
+  }, true);
+}
+
+installImageFallbacks();
 
 function setLoading(show, text = "Preparando sua biblioteca...") {
   const loading = $("#app-loading");
@@ -254,6 +268,20 @@ function roleIsAdmin() {
 
 function roleIsLibrarian() {
   return state.user?.role === "librarian";
+}
+
+function studentStatus(student) {
+  const value = String(student?.student_status || "").toLowerCase();
+  if (["active", "blocked", "archived"].includes(value)) return value;
+  return student?.active === false ? "archived" : "active";
+}
+
+function studentStatusBadge(student, overdue = 0) {
+  const status = studentStatus(student);
+  if (status === "blocked") return statusBadge("Bloqueado", "warning");
+  if (status === "archived") return statusBadge("Arquivado", "muted");
+  if (Number(overdue) > 0) return statusBadge(`${Number(overdue)} atraso(s)`, "danger");
+  return statusBadge("Regular", "success");
 }
 
 function applyRoleUI() {
@@ -739,7 +767,7 @@ async function fetchStudents(force = false) {
 }
 
 function populateStudentAndLoanSelects() {
-  const students = state.caches.students.filter(student => student.active !== false);
+  const students = state.caches.students.filter(student => studentStatus(student) === "active");
   const options = students.map(student => `<option value="${escapeHTML(student.id)}">${escapeHTML(student.full_name)} · ${escapeHTML(student.class_name || "Sem turma")}</option>`).join("");
   ["loan-student", "reservation-student"].forEach(id => {
     const select = document.getElementById(id);
@@ -759,9 +787,11 @@ function getFilteredStudents() {
   return state.caches.students.filter(student => {
     if (query && !normalize(`${student.full_name} ${student.registration_number} ${student.guardian_contact || ""}`).includes(query)) return false;
     if (classId && String(student.class_id) !== String(classId)) return false;
-    if (status === "active" && student.active === false) return false;
-    if (status === "archived" && student.active !== false) return false;
-    if (status === "pending" && Number(student.overdue_loans || 0) < 1) return false;
+    const lifecycle = studentStatus(student);
+    if (status === "active" && lifecycle !== "active") return false;
+    if (status === "blocked" && lifecycle !== "blocked") return false;
+    if (status === "archived" && lifecycle !== "archived") return false;
+    if (status === "pending" && (lifecycle !== "active" || Number(student.overdue_loans || 0) < 1)) return false;
     return true;
   });
 }
@@ -781,7 +811,7 @@ function renderStudents() {
             <span class="card-identity__avatar">${student.photo_url ? `<img loading="lazy" src="${escapeHTML(student.photo_url)}" alt="">` : escapeHTML(initials(student.full_name))}</span>
             <div><h3>${escapeHTML(student.full_name)}</h3><p>${escapeHTML(student.class_name || "Sem turma")} · nº ${escapeHTML(student.roll_number || "—")}</p><small>Matrícula ${escapeHTML(student.registration_number)}</small></div>
           </div>
-          ${student.active === false ? statusBadge("Arquivado", "muted") : overdue ? statusBadge(`${overdue} atraso(s)`, "danger") : statusBadge("Regular", "success")}
+          ${studentStatusBadge(student, overdue)}
         </div>
         <div class="student-card__stats">
           <div><strong>${number(student.active_loans)}</strong><span>emprestados</span></div>
@@ -789,7 +819,7 @@ function renderStudents() {
           <div><strong>${escapeHTML(student.guardian_contact || "—")}</strong><span>contato</span></div>
         </div>
         <div class="card-actions">
-          <button class="button button--primary" data-student-loan="${escapeHTML(student.id)}">Emprestar</button>
+          <button class="button button--primary" data-student-loan="${escapeHTML(student.id)}" ${studentStatus(student) !== "active" ? "disabled" : ""}>Emprestar</button>
           <button class="button button--secondary" data-student-detail="${escapeHTML(student.id)}">Ver aluno</button>
           <button class="button button--ghost" data-student-edit="${escapeHTML(student.id)}">Editar</button>
         </div>
@@ -808,30 +838,33 @@ async function openStudentDetails(id) {
   const history = payload.history || [];
   const notices = payload.notices || [];
   const overdue = activeLoans.filter(item => Number(item.overdue_days || 0) > 0);
+  const lifecycle = studentStatus(student);
+  const lifecycleLabel = lifecycle === "blocked" ? "Bloqueado" : lifecycle === "archived" ? "Arquivado" : overdue.length ? `${overdue.length} atraso(s)` : "Regular";
 
   $("#detail-modal-eyebrow").textContent = "Aluno";
   $("#detail-modal-title").textContent = student.full_name || "Aluno";
   $("#detail-modal-subtitle").textContent = `${student.class_name || "Sem turma"} · Matrícula ${student.registration_number || "—"}`;
   $("#detail-modal-content").innerHTML = `
     <div class="detail-summary-grid">
-      <div><span>Situação</span><strong>${overdue.length ? `${overdue.length} atraso(s)` : "Regular"}</strong></div>
+      <div><span>Situação</span><strong>${escapeHTML(lifecycleLabel)}</strong></div>
       <div><span>Livros atuais</span><strong>${activeLoans.length}</strong></div>
       <div><span>Contato</span><strong>${escapeHTML(student.guardian_contact || "Não informado")}</strong></div>
       <div><span>Histórico</span><strong>${history.length}</strong></div>
     </div>
     <div class="detail-actions">
-      <button class="button button--primary" data-detail-student-loan>＋ Emprestar livro</button>
+      <button class="button button--primary" data-detail-student-loan ${lifecycle !== "active" ? "disabled" : ""}>＋ Emprestar livro</button>
       <button class="button button--secondary" data-detail-student-edit>Editar aluno</button>
-      <button class="button button--ghost" data-detail-student-status>${student.active === false ? "Reativar aluno" : "Bloquear aluno"}</button>
-      ${roleIsAdmin() ? `<button class="button button--danger" data-detail-student-archive ${student.active === false ? "disabled" : ""}>Arquivar cadastro</button>` : ""}
+      ${lifecycle === "archived" && !roleIsAdmin() ? "" : `<button class="button button--ghost" data-detail-student-status>${lifecycle === "active" ? "Bloquear aluno" : "Reativar aluno"}</button>`}
+      ${roleIsAdmin() ? `<button class="button button--danger" data-detail-student-archive ${lifecycle === "archived" ? "disabled" : ""}>Arquivar cadastro</button>` : ""}
     </div>
     <section class="detail-section"><h3>Livros atuais</h3>${activeLoans.length ? activeLoans.map(item => `<div class="detail-row"><div><strong>${escapeHTML(item.book_title)}</strong><small>${escapeHTML(item.inventory_code || "")} · devolução ${formatDate(item.due_date)}</small></div>${Number(item.overdue_days || 0) > 0 ? statusBadge(`${item.overdue_days} dia(s) atrasado`, "danger") : statusBadge("Em dia", "success")}</div>`).join("") : `<p class="muted-text">Nenhum empréstimo ativo.</p>`}</section>
     <section class="detail-section"><h3>Histórico recente</h3>${history.slice(0, 12).map(item => `<div class="detail-row"><div><strong>${escapeHTML(item.book_title)}</strong><small>${formatDate(item.loan_date)} → ${item.returned_at ? formatDate(item.returned_at) : "Em aberto"}</small></div>${statusBadge(item.status === "active" ? "Ativo" : "Devolvido", item.status === "active" ? "warning" : "muted")}</div>`).join("") || `<p class="muted-text">Sem histórico.</p>`}</section>
     <section class="detail-section"><h3>Contatos de cobrança</h3>${notices.slice(0, 10).map(item => `<div class="detail-row"><div><strong>${escapeHTML(item.channel || "Contato")}</strong><small>${formatDateTime(item.created_at)} · ${escapeHTML(item.result || "registrado")}</small></div></div>`).join("") || `<p class="muted-text">Nenhum contato registrado.</p>`}</section>`;
   $("[data-detail-student-loan]").onclick = () => { closeDialog("detail-modal"); openLoanModal({ studentId: student.id }); };
   $("[data-detail-student-edit]").onclick = () => { closeDialog("detail-modal"); openStudentEdit(student.id); };
-  $("[data-detail-student-status]").onclick = async () => {
-    const activate = student.active === false;
+  const lifecycleButton = $("[data-detail-student-status]");
+  if (lifecycleButton) lifecycleButton.onclick = async () => {
+    const activate = lifecycle !== "active";
     const ok = await confirmAction(
       activate ? "Reativar aluno" : "Bloquear aluno",
       activate
@@ -841,7 +874,7 @@ async function openStudentDetails(id) {
     );
     if (!ok) return;
     try {
-      await api(`/api/students/${student.id}/status`, { method: "PUT", body: { active: activate } });
+      await api(`/api/students/${student.id}/status`, { method: "PUT", body: { status: activate ? "active" : "blocked" } });
       toast(activate ? "Aluno reativado." : "Aluno bloqueado.");
       closeDialog("detail-modal");
       await loadStudents(true);
