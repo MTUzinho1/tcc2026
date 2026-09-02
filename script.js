@@ -415,9 +415,12 @@ async function handleLogin(event) {
       body: { email, password },
       timeoutMs: 45000
     });
+    if (!payload?.token || !payload?.user) throw new Error("O servidor respondeu ao login sem os dados da conta.");
     state.token = payload.token;
     state.user = payload.user;
     localStorage.setItem("bookshare_token", state.token);
+    showApp();
+    setLoading(false);
     await enterApplication();
     form.reset();
   } catch (error) {
@@ -451,6 +454,11 @@ async function restoreSession() {
 }
 
 async function enterApplication() {
+  if (!state.user || typeof state.user !== "object") throw new Error("Não foi possível carregar o perfil da conta.");
+  const normalizedRole = String(state.user.role || "").toLowerCase().trim();
+  if (!normalizedRole) state.user.role = "librarian";
+  else if (["admin", "librarian"].includes(normalizedRole)) state.user.role = normalizedRole;
+  else state.user.role = "librarian";
   applyRoleUI();
   setUserUI();
   startClock();
