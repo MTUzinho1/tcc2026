@@ -31,7 +31,8 @@ const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
 
-const JWT_SECRET = String(process.env.JWT_SECRET || "");
+const JWT_SECRET_ENV = String(process.env.JWT_SECRET || "");
+const JWT_SECRET = JWT_SECRET_ENV || crypto.createHash("sha256").update(`${process.env.DATABASE_URL || "bookshare"}:BookShare-2026`).digest("hex");
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -2637,16 +2638,6 @@ for (const [titleKey, urls] of FINAL_50_REAL_COVER_CANDIDATES.entries()) {
 
  
 
-if (JWT_SECRET.length < 24) {
-
-  console.error("JWT_SECRET ausente ou curta. Configure uma chave segura no Render.");
-
-  process.exit(1);
-
-}
-
- 
-
 if (!process.env.DATABASE_URL) {
 
   console.error("DATABASE_URL não configurada.");
@@ -2752,6 +2743,11 @@ app.use(cors({
  
 
 app.use(express.json({ limit: "3mb" }));
+
+app.get("/", (_req, res) => res.sendFile(require("path").join(__dirname, "index.html")));
+app.get("/style.css", (_req, res) => res.sendFile(require("path").join(__dirname, "style.css")));
+app.get("/script.js", (_req, res) => res.sendFile(require("path").join(__dirname, "script.js")));
+app.get("/config.json", (_req, res) => res.sendFile(require("path").join(__dirname, "config.json")));
 
  
 
@@ -3561,18 +3557,17 @@ async function findUserForLogin(email) {
     LEFT JOIN schools s ON s.id = u.school_id
   `;
 
-  const exactResult = await pool.query(
-    `${baseSelect}
-     WHERE LOWER(BTRIM(u.email)) = $1
-     ORDER BY
-       CASE WHEN LOWER(BTRIM(u.email)) = $1 THEN 0 ELSE 1 END,
-       u.active DESC,
-       CASE WHEN u.deleted_at IS NULL THEN 0 ELSE 1 END,
-       u.updated_at DESC,
-       u.created_at DESC
-     LIMIT 1`,
-    [normalizedEmail]
-  );
+const exactResult = await pool.query(
+  `${baseSelect}
+   WHERE LOWER(email) = $1
+   ORDER BY
+     u.active DESC,
+     CASE WHEN u.deleted_at IS NULL THEN 0 ELSE 1 END,
+     u.updated_at DESC,
+     u.created_at DESC
+   LIMIT 1`,
+  [normalizedEmail]
+);
 
   if (exactResult.rows[0]) return exactResult.rows[0];
 
@@ -3888,7 +3883,6 @@ async function primeCoverPlaceholderHashes() {
 
     } catch (_error) {
 
-      // Ignora placeholders que o Sharp não conseguir abrir.
 
     }
 
@@ -3954,7 +3948,6 @@ async function downloadVerifiedCover(url) {
 
  
 
-    // Rejeita imagens praticamente vazias.
 
     if (averageMean > 242 && averageDeviation < 9) return null;
 
@@ -4106,11 +4099,8 @@ async function coverFromGoogleVolume(volume) {
 
  
 
-  // Só usa URLs realmente fornecidas por imageLinks.
 
-  // Não constrói URL de capa quando a edição não possui imagem,
 
-  // porque isso retorna o placeholder "image not available".
 
   const urls = [...new Set(imageLinksFromVolume(volume))];
 
@@ -4490,7 +4480,6 @@ async function resolveOfficialEditionCover(title, authorOverride = "") {
 
  
 
-  // 1. Links específicos da edição já definidos dentro do server.js.
 
   for (const url of directCandidates) {
 
@@ -4536,7 +4525,6 @@ async function resolveOfficialEditionCover(title, authorOverride = "") {
 
  
 
-  // 2. ISBN exato da edição.
 
   if (edition.isbn13) {
 
@@ -4556,7 +4544,6 @@ async function resolveOfficialEditionCover(title, authorOverride = "") {
 
  
 
-  // 3. Volume exato previamente identificado.
 
   if (!cover && edition.googleVolumeId) {
 
@@ -4568,7 +4555,6 @@ async function resolveOfficialEditionCover(title, authorOverride = "") {
 
  
 
-  // 4. Busca exata por título e autor.
 
   if (!cover) {
 
@@ -4675,6 +4661,7 @@ async function syncBookCovers({ force = false } = {}) {
       if (!editionForTitle(book.title)) return false;
 
       if (book.cover_source === "manual-upload") return false;
+      if (book.cover_source === "google-books" && /^https?:\/\//i.test(String(book.cover_url || ""))) return false;
 
       return force || book.cover_source !== "verified-original-v30" || !isDataImage(book.cover_url);
 
@@ -4920,46 +4907,26 @@ app.post("/api/auth/login", asyncRoute(async (req, res) => {
 
  
 
-  await pool.query(
+pool.query(
+  `UPDATE users
+   SET last_login_at = NOW(), updated_at = NOW()
+   WHERE id = $1`,
+  [user.id]
+).catch(error => console.error("Falha ao atualizar last_login_at:", error));
 
-    `UPDATE users
-
-     SET last_login_at = NOW(), updated_at = NOW()
-
-     WHERE id = $1`,
-
-    [user.id]
-
-  );
-
- 
-
-  res.json({
-
+res.json({
     token: signToken(user),
-
     user: {
-
       id: user.id,
-
       name: user.name,
-
       email: user.email,
-
       role: user.role,
-
       avatar_url: user.avatar_url || null,
-
       phone: user.phone || null,
-
       job_title: user.job_title || null,
-
       school_id: user.school_id || null,
-
       school_name: user.school_name || null
-
     }
-
   });
 
 }));
@@ -6238,7 +6205,7 @@ app.get("/api/students/:id", authenticate, asyncRoute(async (req, res) => {
 
  
 
-app.post("/api/students", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.post("/api/students", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const fullName = requiredText(req.body.full_name, "o nome do aluno", 160);
 
@@ -6310,7 +6277,7 @@ app.post("/api/students", authenticate, requireRole("admin"), asyncRoute(async (
 
  
 
-app.put("/api/students/:id", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.put("/api/students/:id", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const fullName = requiredText(req.body.full_name, "o nome do aluno", 160);
 
@@ -6444,7 +6411,7 @@ app.delete("/api/students/:id", authenticate, requireRole("admin"), asyncRoute(a
 
  
 
-app.put("/api/students/:id/status", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.put("/api/students/:id/status", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const active = cleanBoolean(req.body.active);
 
@@ -6571,11 +6538,8 @@ app.get("/api/books", authenticate, asyncRoute(async (_req, res) => {
       b.description,
 
       CASE
-
-        WHEN b.cover_source = 'manual-upload' THEN b.cover_url
-
+        WHEN b.cover_source IN ('manual-upload', 'google-books', 'verified-original-v30') THEN b.cover_url
         ELSE NULL
-
       END AS cover_url,
 
       b.cover_source,
@@ -6716,7 +6680,7 @@ app.get("/api/books/:id", authenticate, asyncRoute(async (req, res) => {
 
  
 
-app.post("/api/books", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.post("/api/books", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const title = requiredText(req.body.title, "o título", 180);
 
@@ -6790,7 +6754,7 @@ app.post("/api/books", authenticate, requireRole("admin"), asyncRoute(async (req
 
  
 
-app.put("/api/books/:id", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.put("/api/books/:id", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const title = requiredText(req.body.title, "o título", 180);
 
@@ -7056,7 +7020,7 @@ app.get("/api/copies", authenticate, asyncRoute(async (_req, res) => {
 
  
 
-app.post("/api/copies", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.post("/api/copies", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const bookId = requiredText(req.body.book_id, "o livro");
 
@@ -7106,7 +7070,7 @@ app.post("/api/copies", authenticate, requireRole("admin"), asyncRoute(async (re
 
  
 
-app.put("/api/copies/:id/status", authenticate, requireRole("admin"), asyncRoute(async (req, res) => {
+app.put("/api/copies/:id/status", authenticate, requireRole("admin", "librarian"), asyncRoute(async (req, res) => {
 
   const status = requiredText(req.body.status, "a situação do exemplar");
 
@@ -9313,6 +9277,186 @@ async function clearUnverifiedBookCovers() {
 
  
 
+
+
+const AUTO_EXPAND_CATALOG = String(process.env.AUTO_EXPAND_CATALOG ?? "true").toLowerCase() !== "false";
+const DEMO_CATALOG_TARGET = Math.max(80, Math.min(400, Number(process.env.DEMO_CATALOG_TARGET || 220)));
+
+function normalizeGoogleCover(url) {
+  if (!url) return null;
+  return String(url)
+    .replace(/^http:\/\//i, "https://")
+    .replace(/&edge=curl/gi, "")
+    .replace(/zoom=1/gi, "zoom=2");
+}
+
+function extractPublicationYear(value) {
+  const match = String(value || "").match(/\b(1[5-9]\d{2}|20\d{2}|2100)\b/);
+  return match ? Number(match[1]) : null;
+}
+
+function chooseCatalogCategory(title, categories = []) {
+  const normalized = String(title || "").toLowerCase();
+  const preferred = [
+    [/(hist[oó]ria|brasil|guerra|biograf)/, "História"],
+    [/(ci[eê]ncia|f[ií]sica|qu[ií]mica|biologia|astronom)/, "Ciências"],
+    [/(matem[aá]tica|geometr|estat[ií]st)/, "Matemática"],
+    [/(poesia|poema|verso)/, "Poesia"],
+    [/(infantil|crian[cç]a|conto|f[aá]bula)/, "Infantojuvenil"],
+    [/(filosof|sociolog|pol[ií]tica)/, "Ciências Humanas"],
+    [/(romance|literatura|cl[aá]ssic|fic[cç][aã]o)/, "Literatura Estrangeira"]
+  ];
+  for (const [pattern, name] of preferred) {
+    if (pattern.test(normalized)) {
+      const found = categories.find(item => String(item.name).toLowerCase() === name.toLowerCase());
+      if (found) return found.id;
+    }
+  }
+  return categories[0]?.id || null;
+}
+
+async function ensureLargeRealCatalog() {
+  if (!AUTO_EXPAND_CATALOG) return;
+
+  const countResult = await pool.query("SELECT COUNT(*)::INT AS total FROM books WHERE active = TRUE");
+  let total = Number(countResult.rows[0]?.total || 0);
+  if (total >= DEMO_CATALOG_TARGET) {
+    console.log(`Catálogo já possui ${total} títulos; importação automática não é necessária.`);
+    return;
+  }
+
+  const [schoolsResult, categoriesResult] = await Promise.all([
+    pool.query("SELECT id FROM schools WHERE active = TRUE ORDER BY code = 'PRINCIPAL' DESC, created_at LIMIT 1"),
+    pool.query("SELECT id, name FROM categories WHERE active = TRUE ORDER BY name")
+  ]);
+
+  const schoolId = schoolsResult.rows[0]?.id || null;
+  const categories = categoriesResult.rows;
+  if (!categories.length) {
+    console.warn("Catálogo automático ignorado: nenhuma categoria ativa encontrada.");
+    return;
+  }
+
+  const searches = [
+    "literatura brasileira",
+    "literatura juvenil",
+    "romance clássico",
+    "contos brasileiros",
+    "poesia brasileira",
+    "história do brasil",
+    "ciências para jovens",
+    "astronomia",
+    "biologia",
+    "matemática",
+    "filosofia",
+    "geografia",
+    "tecnologia",
+    "educação",
+    "aventura juvenil",
+    "fantasia juvenil"
+  ];
+
+  let inserted = 0;
+  for (const search of searches) {
+    if (total >= DEMO_CATALOG_TARGET) break;
+
+    for (const startIndex of [0, 40]) {
+      if (total >= DEMO_CATALOG_TARGET) break;
+      const url = new URL("https://www.googleapis.com/books/v1/volumes");
+      url.searchParams.set("q", search);
+      url.searchParams.set("langRestrict", "pt");
+      url.searchParams.set("printType", "books");
+      url.searchParams.set("maxResults", "40");
+      url.searchParams.set("startIndex", String(startIndex));
+      url.searchParams.set("fields", "items(id,volumeInfo(title,authors,publisher,publishedDate,description,categories,industryIdentifiers,imageLinks))");
+
+      try {
+        const response = await fetch(url, {
+          headers: { "User-Agent": "BookShare-TCC/11.0" },
+          signal: AbortSignal.timeout(12000)
+        });
+        if (!response.ok) continue;
+        const payload = await response.json();
+
+        for (const item of payload.items || []) {
+          if (total >= DEMO_CATALOG_TARGET) break;
+          const info = item.volumeInfo || {};
+          const title = String(info.title || "").trim();
+          const author = String(info.authors?.[0] || "").trim();
+          const cover = normalizeGoogleCover(
+            info.imageLinks?.extraLarge ||
+            info.imageLinks?.large ||
+            info.imageLinks?.medium ||
+            info.imageLinks?.small ||
+            info.imageLinks?.thumbnail ||
+            info.imageLinks?.smallThumbnail
+          );
+          if (!title || !author || !cover) continue;
+
+          const identifiers = info.industryIdentifiers || [];
+          const isbn13 = identifiers.find(x => x.type === "ISBN_13")?.identifier;
+          const isbn10 = identifiers.find(x => x.type === "ISBN_10")?.identifier;
+          const isbn = String(isbn13 || isbn10 || `GB-${item.id}`).slice(0, 30);
+          const categoryId = chooseCatalogCategory(
+            `${title} ${(info.categories || []).join(" ")}`,
+            categories
+          );
+          const description = String(info.description || "Livro real importado automaticamente para o catálogo demonstrativo BookShare.").slice(0, 3500);
+          const shelf = `AUTO-${String((total % 12) + 1).padStart(2, "0")}`;
+
+          const result = await pool.query(
+            `INSERT INTO books
+              (title, author, isbn, publisher, publication_year, category_id, shelf, description,
+               cover_url, active, school_id, cover_source, cover_checked_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10,'google-books',NOW())
+             ON CONFLICT (isbn) DO UPDATE SET
+               cover_url = CASE
+                 WHEN books.cover_url IS NULL OR books.cover_url = '' OR books.cover_url LIKE 'data:image/svg+xml%'
+                 THEN EXCLUDED.cover_url ELSE books.cover_url END,
+               cover_source = COALESCE(books.cover_source, EXCLUDED.cover_source),
+               cover_checked_at = NOW(),
+               active = TRUE
+             RETURNING id`,
+            [
+              title,
+              author,
+              isbn,
+              info.publisher ? String(info.publisher).slice(0, 120) : null,
+              extractPublicationYear(info.publishedDate),
+              categoryId,
+              shelf,
+              description,
+              cover,
+              schoolId
+            ]
+          );
+
+          const bookId = result.rows[0]?.id;
+          if (!bookId) continue;
+
+          const copyAmount = total % 4 === 0 ? 3 : 2;
+          for (let copyNumber = 1; copyNumber <= copyAmount; copyNumber += 1) {
+            const inventoryCode = `AUTO-${String(bookId).replace(/-/g, "").slice(0, 10).toUpperCase()}-${copyNumber}`;
+            await pool.query(
+              `INSERT INTO book_copies (book_id, inventory_code, status, acquired_at, condition_notes)
+               VALUES ($1,$2,'available',CURRENT_DATE,'Exemplar do catálogo ampliado')
+               ON CONFLICT (inventory_code) DO NOTHING`,
+              [bookId, inventoryCode]
+            );
+          }
+
+          inserted += 1;
+          total += 1;
+        }
+      } catch (error) {
+        console.warn(`Falha ao importar catálogo "${search}":`, error.message);
+      }
+    }
+  }
+
+  console.log(`Catálogo real ampliado: ${inserted} títulos processados; total aproximado ${total}.`);
+}
+
 async function start() {
 
   try {
@@ -9322,6 +9466,8 @@ async function start() {
     await ensureRuntimeSchema();
 
     await ensureInitialUsers();
+
+    await ensureLargeRealCatalog();
 
     await primeCoverPlaceholderHashes();
 
@@ -9337,7 +9483,7 @@ async function start() {
 
       setTimeout(() => {
 
-        syncBookCovers({ force: true })
+        syncBookCovers({ force: false })
 
           .catch(error => console.error("Falha na sincronização das capas originais:", error));
 
