@@ -9306,7 +9306,7 @@ async function clearUnverifiedBookCovers() {
 
 
 const AUTO_EXPAND_CATALOG = String(process.env.AUTO_EXPAND_CATALOG ?? "true").toLowerCase() !== "false";
-const DEMO_CATALOG_TARGET = Math.max(80, Math.min(400, Number(process.env.DEMO_CATALOG_TARGET || 220)));
+const DEMO_CATALOG_TARGET = Math.max(100, Math.min(700, Number(process.env.DEMO_CATALOG_TARGET || 450)));
 
 function normalizeGoogleCover(url) {
   if (!url) return null;
@@ -9379,14 +9379,32 @@ async function ensureLargeRealCatalog() {
     "tecnologia",
     "educação",
     "aventura juvenil",
-    "fantasia juvenil"
+    "fantasia juvenil",
+    "clássicos da literatura",
+    "literatura portuguesa",
+    "literatura inglesa",
+    "literatura francesa",
+    "ficção científica",
+    "mistério suspense",
+    "mitologia",
+    "história mundial",
+    "meio ambiente",
+    "química",
+    "física",
+    "artes",
+    "música",
+    "literatura infantil",
+    "crônicas brasileiras",
+    "biografias",
+    "psicologia",
+    "sociologia"
   ];
 
   let inserted = 0;
   for (const search of searches) {
     if (total >= DEMO_CATALOG_TARGET) break;
 
-    for (const startIndex of [0, 40]) {
+    for (const startIndex of [0, 40, 80, 120]) {
       if (total >= DEMO_CATALOG_TARGET) break;
       const url = new URL("https://www.googleapis.com/books/v1/volumes");
       url.searchParams.set("q", search);
@@ -9442,7 +9460,7 @@ async function ensureLargeRealCatalog() {
                cover_source = COALESCE(books.cover_source, EXCLUDED.cover_source),
                cover_checked_at = NOW(),
                active = TRUE
-             RETURNING id`,
+             RETURNING id, (xmax = 0) AS was_inserted`,
             [
               title,
               author,
@@ -9459,6 +9477,7 @@ async function ensureLargeRealCatalog() {
 
           const bookId = result.rows[0]?.id;
           if (!bookId) continue;
+          const wasInserted = Boolean(result.rows[0]?.was_inserted);
 
           const copyAmount = total % 4 === 0 ? 3 : 2;
           for (let copyNumber = 1; copyNumber <= copyAmount; copyNumber += 1) {
@@ -9471,8 +9490,10 @@ async function ensureLargeRealCatalog() {
             );
           }
 
-          inserted += 1;
-          total += 1;
+          if (wasInserted) {
+            inserted += 1;
+            total += 1;
+          }
         }
       } catch (error) {
         console.warn(`Falha ao importar catálogo "${search}":`, error.message);
@@ -9492,8 +9513,6 @@ async function start() {
     await ensureRuntimeSchema();
 
     await ensureInitialUsers();
-
-    await ensureLargeRealCatalog();
 
     await primeCoverPlaceholderHashes();
 
