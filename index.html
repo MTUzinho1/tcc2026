@@ -440,23 +440,28 @@
 
           </button>
 
-          <button id="topbar-profile" class="topbar-profile" type="button">
-
-            <span id="topbar-avatar" class="avatar avatar--small">BS</span>
-
-            <span class="topbar-profile__copy">
-
-              <strong id="topbar-user-name">Usuária</strong>
-
-              <small id="topbar-user-role">Bibliotecária</small>
-
-            </span>
-
-            <span id="topbar-role-pill" class="topbar-role-pill">Balcão</span>
-
-            <span aria-hidden="true">⌄</span>
-
-          </button>
+          <div class="topbar-account">
+            <button id="topbar-profile" class="topbar-profile" type="button" aria-haspopup="menu" aria-expanded="false">
+              <span id="topbar-avatar" class="avatar avatar--small">BS</span>
+              <span class="topbar-profile__copy">
+                <strong id="topbar-user-name">Usuária</strong>
+                <small id="topbar-user-role">Bibliotecária</small>
+              </span>
+              <span id="topbar-role-pill" class="topbar-role-pill">Balcão</span>
+              <span class="topbar-profile__chevron" aria-hidden="true">⌄</span>
+            </button>
+            <div id="account-menu" class="account-menu is-hidden" role="menu">
+              <button id="account-profile-button" type="button" role="menuitem">
+                <span>👤</span><span><strong>Meu perfil</strong><small>Ver e editar meus dados</small></span>
+              </button>
+              <button id="account-switch-button" type="button" role="menuitem">
+                <span>⇄</span><span><strong>Trocar de conta</strong><small>Voltar para a tela de login</small></span>
+              </button>
+              <button id="account-logout-button" class="account-menu__danger" type="button" role="menuitem">
+                <span>↪</span><span><strong>Sair da conta</strong><small>Encerrar esta sessão</small></span>
+              </button>
+            </div>
+          </div>
 
         </div>
 
