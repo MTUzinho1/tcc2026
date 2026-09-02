@@ -372,7 +372,7 @@ function updateWelcomeMessage() {
   if (adminTitle) adminTitle.textContent = `${greeting}, ${firstName}!`;
   if ($("#final-welcome-title")) $("#final-welcome-title").textContent = `${greeting}, ${firstName}!`;
   if ($("#home-profile-name")) $("#home-profile-name").textContent = state.user.name || firstName;
-  if ($("#home-profile-role")) $("#home-profile-role").textContent = role;
+  if ($("#home-profile-role")) $("#home-profile-role").textContent = roleIsAdmin() ? "Administrador" : "Bibliotecária";
   const homeAvatar = $("#home-profile-avatar");
   if (homeAvatar) homeAvatar.innerHTML = state.user.avatar_url ? `<img src="${escapeHTML(state.user.avatar_url)}" alt="">` : initials(state.user.name);
 }
@@ -454,13 +454,16 @@ async function enterApplication() {
   applyRoleUI();
   setUserUI();
   startClock();
+  state.route = "dashboard";
+  $$(".page-view").forEach(view => view.classList.add("is-hidden"));
+  $("#view-dashboard")?.classList.remove("is-hidden");
   showApp();
   setLoading(false);
 
   Promise.allSettled([
     loadReferenceData(),
     loadNotifications(),
-    navigate("dashboard")
+    loadDashboard()
   ]).then(results => {
     const failed = results.find(result => result.status === "rejected");
     if (failed) toast("Alguns dados demoraram para carregar. Você já pode usar o menu e tentar novamente.", "warning");
@@ -478,8 +481,14 @@ function startClock() {
     const now = new Date();
     const date = $("#service-date");
     const time = $("#service-time");
+    const topDate = $("#topbar-date-text");
+    const topTime = $("#topbar-time-text");
+    const dateText = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(now);
+    const timeText = new Intl.DateTimeFormat("pt-BR", { weekday: "long", hour: "2-digit", minute: "2-digit" }).format(now);
     if (date) date.textContent = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long" }).format(now);
     if (time) time.textContent = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(now);
+    if (topDate) topDate.textContent = dateText;
+    if (topTime) topTime.textContent = timeText;
   };
   update();
   state.clockTimer = setInterval(update, 30000);
