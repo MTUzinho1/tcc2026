@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS classes (
   school_year INTEGER NOT NULL,
   teacher_name VARCHAR(120),
   active BOOLEAN NOT NULL DEFAULT TRUE,
+  student_status VARCHAR(20) NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -156,12 +157,31 @@ CREATE TABLE IF NOT EXISTS students (
 );
 
 ALTER TABLE students ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS student_status VARCHAR(20);
+UPDATE students
+SET student_status = CASE WHEN active = FALSE THEN 'archived' ELSE 'active' END
+WHERE student_status IS NULL OR student_status NOT IN ('active', 'blocked', 'archived');
+ALTER TABLE students ALTER COLUMN student_status SET DEFAULT 'active';
+ALTER TABLE students ALTER COLUMN student_status SET NOT NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'students_student_status_check'
+  ) THEN
+    ALTER TABLE students
+      ADD CONSTRAINT students_student_status_check
+      CHECK (student_status IN ('active', 'blocked', 'archived'));
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS students_class_id_idx
   ON students (class_id);
 
 CREATE INDEX IF NOT EXISTS students_active_idx
   ON students (active);
+
+CREATE INDEX IF NOT EXISTS students_student_status_idx
+  ON students (student_status);
 
 CREATE INDEX IF NOT EXISTS students_full_name_idx
   ON students (LOWER(full_name));
