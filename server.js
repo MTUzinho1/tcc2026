@@ -4924,19 +4924,22 @@ pool.query(
   [user.id]
 ).catch(error => console.error("Falha ao atualizar last_login_at:", error));
 
-res.json({
-    token: signToken(user),
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      avatar_url: user.avatar_url || null,
-      phone: user.phone || null,
-      job_title: user.job_title || null,
-      school_id: user.school_id || null,
-      school_name: user.school_name || null
-    }
+const safeRole = user.role === "admin" ? "admin" : "librarian";
+  const safeUser = {
+    id: user.id,
+    name: user.name || (safeRole === "admin" ? "Administrador" : "Bibliotecária"),
+    email: user.email,
+    role: safeRole,
+    avatar_url: user.avatar_url || null,
+    phone: user.phone || null,
+    job_title: user.job_title || (safeRole === "admin" ? "Administrador do sistema" : "Bibliotecária"),
+    school_id: user.school_id || null,
+    school_name: user.school_name || null
+  };
+
+  res.json({
+    token: signToken(safeUser),
+    user: safeUser
   });
 
 }));
