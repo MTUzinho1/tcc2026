@@ -9631,10 +9631,11 @@ async function ensureLargeRealCatalog() {
           continue;
         }
 
-        const isbn = chooseOpenLibraryIsbn(doc.isbn)
+        const realIsbn = chooseOpenLibraryIsbn(doc.isbn);
+        const isbn = realIsbn
           || `OL-${String(doc.key || crypto.randomUUID()).replace(/^\/works\//, "").slice(0, 26)}`;
 
-        const normalizedIsbn = String(isbn).replace(/[^0-9X]/gi, "");
+        const normalizedIsbn = realIsbn ? String(realIsbn).replace(/[^0-9X]/gi, "") : "";
         if (normalizedIsbn && existingIsbns.has(normalizedIsbn)) continue;
 
         const publisher = String(doc.publisher?.[0] || "Edição catalogada").trim().slice(0, 120);
