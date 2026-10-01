@@ -691,7 +691,7 @@ function renderPopularBooks(items) {
   container.innerHTML = items.map((item, index) => `
     <button class="popular-item" data-book-id="${escapeHTML(item.id)}">
       <span class="popular-item__rank">${index + 1}</span>
-      <span class="popular-item__cover">${item.cover_url ? `<img loading="lazy" src="${escapeHTML(item.cover_url)}" alt="">` : "▤"}</span>
+      <span class="popular-item__cover">${item.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(item.cover_url))}" alt="">` : "▤"}</span>
       <span><strong>${escapeHTML(item.title)}</strong><small>${escapeHTML(item.author)}</small></span>
       <b>${number(item.loan_count)}</b>
     </button>`).join("");
@@ -881,7 +881,7 @@ function renderStudents() {
       <article class="student-card">
         <div class="student-card__header">
           <div class="card-identity">
-            <span class="card-identity__avatar">${student.photo_url ? `<img loading="lazy" src="${escapeHTML(student.photo_url)}" alt="">` : escapeHTML(initials(student.full_name))}</span>
+            <span class="card-identity__avatar">${student.photo_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(student.photo_url)}" alt="">` : escapeHTML(initials(student.full_name))}</span>
             <div><h3>${escapeHTML(student.full_name)}</h3><p>${escapeHTML(student.class_name || "Sem turma")} · nº ${escapeHTML(student.roll_number || "—")}</p><small>Matrícula ${escapeHTML(student.registration_number)}</small></div>
           </div>
           ${studentStatusBadge(student, overdue)}
@@ -1080,13 +1080,13 @@ function renderBooks() {
 
   if (state.bookView === "table") {
     container.className = "table-card";
-    container.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Livro</th><th>Categoria</th><th>Local</th><th>Disponíveis</th><th></th></tr></thead><tbody>${books.slice(0, 180).map(book => `<tr><td><div class="table-book"><span class="table-book__cover">${book.cover_url ? `<img loading="lazy" src="${escapeHTML(book.cover_url)}" alt="">` : "▤"}</span><span><strong>${escapeHTML(book.title)}</strong><small>${escapeHTML(book.author)}</small></span></div></td><td>${escapeHTML(book.category_name || "—")}</td><td>${escapeHTML(book.shelf || "—")}</td><td>${number(book.available_copies)} / ${number(book.total_copies)}</td><td><button class="button button--small button--secondary" data-book-detail="${escapeHTML(book.id)}">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+    container.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Livro</th><th>Categoria</th><th>Local</th><th>Disponíveis</th><th></th></tr></thead><tbody>${books.slice(0, 180).map(book => `<tr><td><div class="table-book"><span class="table-book__cover">${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="">` : "▤"}</span><span><strong>${escapeHTML(book.title)}</strong><small>${escapeHTML(book.author)}</small></span></div></td><td>${escapeHTML(book.category_name || "—")}</td><td>${escapeHTML(book.shelf || "—")}</td><td>${number(book.available_copies)} / ${number(book.total_copies)}</td><td><button class="button button--small button--secondary" data-book-detail="${escapeHTML(book.id)}">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   } else {
     container.className = "book-grid";
     container.innerHTML = books.slice(0, 120).map(book => `
       <article class="book-card">
         <div class="book-card__cover">
-          ${book.cover_url ? `<img loading="lazy" decoding="async" src="${escapeHTML(book.cover_url)}" alt="Capa de ${escapeHTML(book.title)}">` : `<div class="book-card__placeholder"><span>▤</span><small>Capa sendo sincronizada</small></div>`}
+          ${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="Capa de ${escapeHTML(book.title)}">` : `<div class="book-card__placeholder"><span>▤</span><small>Capa sendo sincronizada</small></div>`}
           <span class="book-card__status">${Number(book.available_copies) > 0 ? statusBadge(`${book.available_copies} disponível(is)`, "success") : statusBadge("Sem exemplar livre", "warning")}</span>
         </div>
         <div class="book-card__body">
@@ -1117,7 +1117,7 @@ async function openBookDetails(id) {
   $("#detail-modal-subtitle").textContent = `${book.author || "Autor não informado"} · ${book.category_name || "Sem categoria"}`;
   $("#detail-modal-content").innerHTML = `
     <div class="book-detail-hero">
-      <div class="book-detail-cover">${book.cover_url ? `<img loading="lazy" src="${escapeHTML(book.cover_url)}" alt="">` : "▤"}</div>
+      <div class="book-detail-cover">${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="">` : "▤"}</div>
       <div><p><strong>ISBN:</strong> ${escapeHTML(book.isbn || "—")}</p><p><strong>Editora:</strong> ${escapeHTML(book.publisher || "—")}</p><p><strong>Estante:</strong> ${escapeHTML(book.shelf || "—")}</p><p>${escapeHTML(book.description || "Sem descrição cadastrada.")}</p></div>
     </div>
     <div class="detail-summary-grid"><div><span>Exemplares</span><strong>${copies.length}</strong></div><div><span>Disponíveis</span><strong>${copies.filter(copy => copy.status === "available").length}</strong></div><div><span>Emprestados</span><strong>${copies.filter(copy => copy.status === "loaned").length}</strong></div><div><span>Empréstimos</span><strong>${number(book.total_loan_count)}</strong></div></div>
@@ -1148,7 +1148,7 @@ async function openBookEdit(id) {
   }
   if (form.elements.quantity) form.elements.quantity.value = 0;
   $("#book-modal-title").textContent = "Editar livro";
-  $("#book-cover-preview").innerHTML = book.cover_url ? `<img src="${escapeHTML(book.cover_url)}" alt="Capa">` : `<span>▤</span>`;
+  $("#book-cover-preview").innerHTML = book.cover_url ? `<img src="${escapeHTML(mediaUrl(book.cover_url))}" alt="Capa">` : `<span>▤</span>`;
   openDialog("book-modal");
 }
 
