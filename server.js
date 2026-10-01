@@ -4762,7 +4762,6 @@ app.get("/api/public/book-cover", asyncRoute(async (req, res) => {
 
   const book = bookResult.rows[0];
   if (!book) throw httpError(404, "Livro não encontrado.");
-  book.cover_url = coverUrlForClient(book);
 
   const storedUrl = String(book.cover_url || "").trim();
   if (/^https?:\/\//i.test(storedUrl)) {
@@ -6636,6 +6635,7 @@ app.get("/api/books/:id", authenticate, asyncRoute(async (req, res) => {
   const book = bookResult.rows[0];
 
   if (!book) throw httpError(404, "Livro não encontrado.");
+  book.cover_url = coverUrlForClient(book);
 
  
 
