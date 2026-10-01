@@ -9545,7 +9545,8 @@ async function ensureDemoSchoolScale() {
            photo_url = CASE
              WHEN registration_number = 'BS2026-0361' THEN photo_url
              WHEN registration_number LIKE 'BS2026-%' THEN $4
-             WHEN photo_url IS NULL OR photo_url = '' OR photo_url ILIKE '%dicebear%' THEN $4
+             WHEN photo_url IS NULL OR photo_url = '' THEN $4
+             WHEN photo_url ILIKE '%dicebear%' OR photo_url LIKE 'https://randomuser.me/%' THEN $4
              ELSE photo_url
            END,
            active = TRUE,
