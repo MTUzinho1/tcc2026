@@ -2051,6 +2051,7 @@ function bindPageActions() {
 
 function bindForms() {
   $("#login-form")?.addEventListener("submit", handleLogin);
+  $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
   $("#loan-form")?.addEventListener("submit", saveLoan);
   $("#return-form")?.addEventListener("submit", saveReturn);
   $("#book-form")?.addEventListener("submit", saveBook);
@@ -2151,7 +2152,7 @@ async function boot() {
   const bootWatchdog = setTimeout(() => {
     const loading = $("#app-loading");
     if (loading && !loading.classList.contains("is-hidden")) {
-      state.user ? showApp() : showAuth();
+      state.user ? showApp() : showLanding();
     }
   }, 7000);
 
@@ -2164,7 +2165,7 @@ async function boot() {
   bindKeyboard();
   setupInitialBookView();
   setupWelcomeBookCarousel();
-  if (!state.token) showAuth();
+  if (!state.token) showLanding();
   await loadApiConfig();
   wakeApi();
 
