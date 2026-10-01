@@ -4650,6 +4650,16 @@ async function resolveOfficialEditionCover(title, authorOverride = "") {
 
  
 
+function coverUrlForClient(book) {
+  const value = String(book?.cover_url || "").trim();
+  if (!value) return null;
+  if (isDataImage(value)) {
+    return `/api/public/book-cover?id=${encodeURIComponent(book.id)}`;
+  }
+  if (/^https?:\/\//i.test(value)) return value;
+  return null;
+}
+
 function delay(milliseconds) { return new Promise(resolve => setTimeout(resolve,milliseconds)); }
 
  
@@ -4736,50 +4746,56 @@ async function syncBookCovers({ force = false } = {}) {
  
 
 app.get("/api/public/book-cover", asyncRoute(async (req, res) => {
+  const id = cleanText(req.query.id, 80);
+  const title = cleanText(req.query.title, 180);
+  if (!id && !title) throw httpError(400, "Informe o livro.");
 
-  const title=requiredText(req.query.title,"o título",180);
+  const bookResult = id
+    ? await pool.query(
+        `SELECT id,title,author,cover_url,cover_source FROM books WHERE id=$1 LIMIT 1`,
+        [id]
+      )
+    : await pool.query(
+        `SELECT id,title,author,cover_url,cover_source FROM books WHERE LOWER(title)=LOWER($1) LIMIT 1`,
+        [title]
+      );
 
-  const bookResult=await pool.query(`SELECT id,title,author,cover_url,cover_source FROM books WHERE LOWER(title)=LOWER($1) LIMIT 1`,[title]);
+  const book = bookResult.rows[0];
+  if (!book) throw httpError(404, "Livro não encontrado.");
+  book.cover_url = coverUrlForClient(book);
 
-  const book=bookResult.rows[0];
+  const storedUrl = String(book.cover_url || "").trim();
+  if (/^https?:\/\//i.test(storedUrl)) {
+    res.set("Cache-Control", "public,max-age=86400,stale-while-revalidate=604800");
+    return res.redirect(302, storedUrl);
+  }
 
-  let parts=dataImageParts(book?.cover_url);
+  let parts = dataImageParts(storedUrl);
 
-  if (!parts && editionForTitle(book?.title || title)) {
-
-    const cover=await resolveOfficialEditionCover(book?.title || title, book?.author || cleanText(req.query.author,160) || "");
-
+  if (!parts && editionForTitle(book.title)) {
+    const cover = await resolveOfficialEditionCover(book.title, book.author || "");
     if (cover) {
-
-      parts={contentType:cover.contentType,buffer:cover.buffer};
-
-      if (book?.id) await pool.query(`UPDATE books SET cover_url=$1,cover_source='verified-original-v30',cover_checked_at=NOW(),updated_at=NOW() WHERE id=$2`,[cover.dataUri,book.id]);
-
+      parts = { contentType: cover.contentType, buffer: cover.buffer };
+      await pool.query(
+        `UPDATE books
+         SET cover_url=$1,cover_source='verified-original-v30',cover_checked_at=NOW(),updated_at=NOW()
+         WHERE id=$2`,
+        [cover.dataUri, book.id]
+      );
     }
-
   }
 
   if (parts) {
-
-    res.set("Content-Type",parts.contentType);
-
-    res.set("Cache-Control","public,max-age=2592000,immutable");
-
-    res.set("Access-Control-Allow-Origin","*");
-
+    res.set("Content-Type", parts.contentType);
+    res.set("Cache-Control", "public,max-age=2592000,immutable");
+    res.set("Access-Control-Allow-Origin", "*");
     return res.send(parts.buffer);
-
   }
 
   res.set("Content-Type","image/svg+xml; charset=utf-8");
-
   res.set("Cache-Control","public,max-age=600");
-
-  return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="640"><rect width="420" height="640" rx="28" fill="#f4f1e9"/><path d="M110 190c55-24 100-10 100-10v250s-45-12-100 12V190Zm200 0c-55-24-100-10-100-10v250s45-12 100 12V190Z" fill="#dcebe6" stroke="#176b63" stroke-width="9"/><path d="M210 180v250" stroke="#176b63" stroke-width="9"/><text x="210" y="520" text-anchor="middle" font-family="Arial" font-size="22" fill="#66736f">Capa original não localizada</text></svg>`);
-
+  return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="420" height="640"><rect width="420" height="640" rx="28" fill="#f4f1e9"/><path d="M110 190c55-24 100-10 100-10v250s-45-12-100 12V190Zm200 0c-55-24-100-10-100-10v250s45-12 100 12V190Z" fill="#dcebe6" stroke="#176b63" stroke-width="9"/><path d="M210 180v250" stroke="#176b63" stroke-width="9"/><text x="210" y="520" text-anchor="middle" font-family="Arial" font-size="22" fill="#66736f">Capa não localizada</text></svg>`);
 }));
-
- 
 
 app.get("/api/public/book-covers/status", (_req, res) => {
 
@@ -6540,81 +6556,48 @@ app.post("/api/categories", authenticate, requireRole("admin"), asyncRoute(async
  
 
 app.get("/api/books", authenticate, asyncRoute(async (_req, res) => {
-
   const result = await pool.query(`
-
     SELECT
-
       b.id,
-
       b.title,
-
       b.author,
-
       b.isbn,
-
       b.publisher,
-
       b.publication_year,
-
       b.category_id,
-
       b.shelf,
-
       b.description,
-
-      CASE
-        WHEN b.cover_source IN ('manual-upload', 'google-books', 'verified-original-v30') THEN b.cover_url
-        ELSE NULL
-      END AS cover_url,
-
+      b.cover_url,
       b.cover_source,
-
       b.cover_checked_at,
-
       b.active,
-
       b.created_at,
-
       b.updated_at,
-
       c.name AS category_name,
-
-      COUNT(bc.id)::INT AS total_copies,
-
-      COUNT(bc.id) FILTER (WHERE bc.status = 'available')::INT AS available_copies,
-
-      COUNT(bc.id) FILTER (WHERE bc.status = 'loaned')::INT AS loaned_copies,
-
-      COUNT(bc.id) FILTER (WHERE bc.status = 'damaged')::INT AS damaged_copies,
-
-      COUNT(bc.id) FILTER (WHERE bc.status = 'lost')::INT AS lost_copies,
-
-      COUNT(bc.id) FILTER (WHERE bc.status = 'maintenance')::INT AS maintenance_copies,
-
-      COUNT(l.id)::INT AS total_loan_count
-
+      COUNT(DISTINCT bc.id)::INT AS total_copies,
+      COUNT(DISTINCT bc.id) FILTER (WHERE bc.status = 'available')::INT AS available_copies,
+      COUNT(DISTINCT bc.id) FILTER (WHERE bc.status = 'loaned')::INT AS loaned_copies,
+      COUNT(DISTINCT bc.id) FILTER (WHERE bc.status = 'damaged')::INT AS damaged_copies,
+      COUNT(DISTINCT bc.id) FILTER (WHERE bc.status = 'lost')::INT AS lost_copies,
+      COUNT(DISTINCT bc.id) FILTER (WHERE bc.status = 'maintenance')::INT AS maintenance_copies,
+      COUNT(DISTINCT l.id)::INT AS total_loan_count
     FROM books b
-
     LEFT JOIN categories c ON c.id = b.category_id
-
     LEFT JOIN book_copies bc ON bc.book_id = b.id
-
     LEFT JOIN loans l ON l.copy_id = bc.id
-
     WHERE b.active = TRUE
-
     GROUP BY b.id, c.id
-
     ORDER BY b.title
-
   `);
 
-  res.json({ books: result.rows });
+  const books = result.rows.map(book => ({
+    ...book,
+    cover_url: coverUrlForClient(book)
+  }));
 
+  res.set("Cache-Control", "private,max-age=30");
+  res.json({ books });
 }));
-
- 
 
 app.get("/api/books/:id", authenticate, asyncRoute(async (req, res) => {
 
@@ -9498,167 +9481,211 @@ async function ensureDemoSchoolScale() {
   console.log(`Base demonstrativa ajustada: ${studentsResult.rows.length} alunos em ${classIds.length} turmas.`);
 }
 
+async function fetchCatalogJson(url, label) {
+  let lastStatus = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "BookShare-TCC/14.0 (biblioteca escolar; contato via projeto acadêmico)"
+        },
+        signal: AbortSignal.timeout(18000)
+      });
+      lastStatus = response.status;
+      if (response.ok) return await response.json();
+      if (response.status !== 429 && response.status < 500) break;
+    } catch (error) {
+      if (attempt === 3) {
+        console.warn(`Falha em ${label}: ${error.message}`);
+        return null;
+      }
+    }
+    await delay(900 * attempt);
+  }
+  console.warn(`${label} respondeu com status ${lastStatus || "desconhecido"}.`);
+  return null;
+}
+
+function catalogIdentity(title, author) {
+  return `${normalizeSearchText(title)}|${normalizeSearchText(author)}`;
+}
+
+function chooseOpenLibraryIsbn(values) {
+  const items = Array.isArray(values) ? values.map(value => String(value).replace(/[^0-9X]/gi, "")) : [];
+  return items.find(value => /^97[89]\d{10}$/.test(value))
+    || items.find(value => /^\d{9}[\dX]$/i.test(value))
+    || null;
+}
+
 async function ensureLargeRealCatalog() {
   if (!AUTO_EXPAND_CATALOG) return;
 
   const countResult = await pool.query("SELECT COUNT(*)::INT AS total FROM books WHERE active = TRUE");
   let total = Number(countResult.rows[0]?.total || 0);
   if (total >= DEMO_CATALOG_TARGET) {
-    console.log(`Catálogo já possui ${total} títulos; importação automática não é necessária.`);
+    console.log(`Catálogo já possui ${total} títulos ativos.`);
     return;
   }
 
-  const [schoolsResult, categoriesResult] = await Promise.all([
+  const [schoolsResult, categoriesResult, existingResult] = await Promise.all([
     pool.query("SELECT id FROM schools WHERE active = TRUE ORDER BY code = 'PRINCIPAL' DESC, created_at LIMIT 1"),
-    pool.query("SELECT id, name FROM categories WHERE active = TRUE ORDER BY name")
+    pool.query("SELECT id, name FROM categories WHERE active = TRUE ORDER BY name"),
+    pool.query("SELECT id,title,author,isbn,active,cover_url,cover_source FROM books")
   ]);
 
   const schoolId = schoolsResult.rows[0]?.id || null;
   const categories = categoriesResult.rows;
-  if (!categories.length) {
-    console.warn("Catálogo automático ignorado: nenhuma categoria ativa encontrada.");
-    return;
-  }
+  const categoryByName = new Map(categories.map(item => [String(item.name).toLowerCase(), item.id]));
+  const existingByIdentity = new Map(
+    existingResult.rows.map(book => [catalogIdentity(book.title, book.author), book])
+  );
+  const existingIsbns = new Set(
+    existingResult.rows.map(book => String(book.isbn || "").replace(/[^0-9X]/gi, "")).filter(Boolean)
+  );
 
-  const searches = [
-    "literatura brasileira",
-    "literatura juvenil",
-    "romance clássico",
-    "contos brasileiros",
-    "poesia brasileira",
-    "história do brasil",
-    "ciências para jovens",
-    "astronomia",
-    "biologia",
-    "matemática",
-    "filosofia",
-    "geografia",
-    "tecnologia",
-    "educação",
-    "aventura juvenil",
-    "fantasia juvenil",
-    "clássicos da literatura",
-    "literatura portuguesa",
-    "literatura inglesa",
-    "literatura francesa",
-    "ficção científica",
-    "mistério suspense",
-    "mitologia",
-    "história mundial",
-    "meio ambiente",
-    "química",
-    "física",
-    "artes",
-    "música",
-    "literatura infantil",
-    "crônicas brasileiras",
-    "biografias",
-    "psicologia",
-    "sociologia"
+  const topics = [
+    ["Literatura Brasileira", "literatura brasileira"],
+    ["Literatura Estrangeira", "romance clássico"],
+    ["Infantojuvenil", "literatura juvenil"],
+    ["Contos e Crônicas", "contos crônicas"],
+    ["Poesia", "poesia"],
+    ["História", "história brasil"],
+    ["Geografia", "geografia"],
+    ["Ciências", "ciências"],
+    ["Biologia", "biologia"],
+    ["Física", "física"],
+    ["Química", "química"],
+    ["Matemática", "matemática"],
+    ["Filosofia", "filosofia"],
+    ["Sociologia", "sociologia"],
+    ["Artes", "artes"],
+    ["Tecnologia", "tecnologia informática"],
+    ["Biografias", "biografia"],
+    ["Quadrinhos", "quadrinhos graphic novel"],
+    ["Dicionários e Referência", "dicionário enciclopédia"],
+    ["Vestibular e ENEM", "enem vestibular"]
   ];
 
-  let inserted = 0;
-  for (const search of searches) {
-    if (total >= DEMO_CATALOG_TARGET) break;
+  let imported = 0;
+  let updatedCovers = 0;
+  let requests = 0;
 
-    for (const startIndex of [0, 40, 80, 120]) {
+  for (let topicIndex = 0; topicIndex < topics.length && total < DEMO_CATALOG_TARGET; topicIndex += 1) {
+    const [categoryName, queryText] = topics[topicIndex];
+    const categoryId = categoryByName.get(categoryName.toLowerCase()) || categories[0]?.id || null;
+    if (!categoryId) continue;
+
+    for (const page of [1, 2] ) {
       if (total >= DEMO_CATALOG_TARGET) break;
-      const url = new URL("https://www.googleapis.com/books/v1/volumes");
-      url.searchParams.set("q", search);
-      url.searchParams.set("langRestrict", "pt");
-      url.searchParams.set("printType", "books");
-      url.searchParams.set("maxResults", "40");
-      url.searchParams.set("startIndex", String(startIndex));
-      url.searchParams.set("fields", "items(id,volumeInfo(title,authors,publisher,publishedDate,description,categories,industryIdentifiers,imageLinks))");
 
-      try {
-        const response = await fetch(url, {
-          headers: { "User-Agent": "BookShare-TCC/11.0" },
-          signal: AbortSignal.timeout(12000)
-        });
-        if (!response.ok) continue;
-        const payload = await response.json();
+      const url = new URL("https://openlibrary.org/search.json");
+      url.searchParams.set("q", `${queryText} language:por`);
+      url.searchParams.set("lang", "pt");
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("limit", "60");
+      url.searchParams.set(
+        "fields",
+        "key,title,author_name,first_publish_year,isbn,publisher,cover_i,language,edition_count"
+      );
 
-        for (const item of payload.items || []) {
-          if (total >= DEMO_CATALOG_TARGET) break;
-          const info = item.volumeInfo || {};
-          const title = String(info.title || "").trim();
-          const author = String(info.authors?.[0] || "").trim();
-          const cover = normalizeGoogleCover(
-            info.imageLinks?.extraLarge ||
-            info.imageLinks?.large ||
-            info.imageLinks?.medium ||
-            info.imageLinks?.small ||
-            info.imageLinks?.thumbnail ||
-            info.imageLinks?.smallThumbnail
-          );
-          if (!title || !author || !cover) continue;
+      if (requests > 0) await delay(1100);
+      requests += 1;
 
-          const identifiers = info.industryIdentifiers || [];
-          const isbn13 = identifiers.find(x => x.type === "ISBN_13")?.identifier;
-          const isbn10 = identifiers.find(x => x.type === "ISBN_10")?.identifier;
-          const isbn = String(isbn13 || isbn10 || `GB-${item.id}`).slice(0, 30);
-          const categoryId = chooseCatalogCategory(
-            `${title} ${(info.categories || []).join(" ")}`,
-            categories
-          );
-          const description = String(info.description || "Livro real importado automaticamente para o catálogo demonstrativo BookShare.").slice(0, 3500);
-          const shelf = `AUTO-${String((total % 12) + 1).padStart(2, "0")}`;
+      const payload = await fetchCatalogJson(url, `Open Library: ${categoryName} p.${page}`);
+      const docs = Array.isArray(payload?.docs) ? payload.docs : [];
+      console.log(`Open Library ${categoryName} p.${page}: ${docs.length} candidatos.`);
 
+      for (const doc of docs) {
+        if (total >= DEMO_CATALOG_TARGET) break;
+
+        const title = String(doc.title || "").trim().slice(0, 180);
+        const author = String(doc.author_name?.[0] || "").trim().slice(0, 160);
+        const coverId = Number(doc.cover_i || 0);
+        if (!title || !author || !coverId) continue;
+
+        const identity = catalogIdentity(title, author);
+        const coverUrl = `https://covers.openlibrary.org/b/id/${coverId}-M.jpg`;
+        const known = existingByIdentity.get(identity);
+
+        if (known) {
+          if (
+            (!known.cover_url || known.cover_source === "official-not-found")
+            && known.cover_source !== "manual-upload"
+          ) {
+            await pool.query(
+              `UPDATE books
+               SET cover_url=$1,cover_source='open-library',cover_checked_at=NOW(),updated_at=NOW(),active=TRUE
+               WHERE id=$2`,
+              [coverUrl, known.id]
+            );
+            known.cover_url = coverUrl;
+            known.cover_source = "open-library";
+            updatedCovers += 1;
+          }
+          if (!known.active) {
+            await pool.query("UPDATE books SET active=TRUE,updated_at=NOW() WHERE id=$1", [known.id]);
+            known.active = true;
+            total += 1;
+          }
+          continue;
+        }
+
+        const isbn = chooseOpenLibraryIsbn(doc.isbn)
+          || `OL-${String(doc.key || crypto.randomUUID()).replace(/^\/works\//, "").slice(0, 26)}`;
+
+        const normalizedIsbn = String(isbn).replace(/[^0-9X]/gi, "");
+        if (normalizedIsbn && existingIsbns.has(normalizedIsbn)) continue;
+
+        const publisher = String(doc.publisher?.[0] || "Edição catalogada").trim().slice(0, 120);
+        const publicationYear = extractPublicationYear(doc.first_publish_year);
+        const shelf = `EST-${String(topicIndex + 1).padStart(2, "0")}`;
+        const description = `Título real do acervo escolar. Dados bibliográficos catalogados pela Open Library.`;
+
+        try {
           const result = await pool.query(
             `INSERT INTO books
-              (title, author, isbn, publisher, publication_year, category_id, shelf, description,
-               cover_url, active, school_id, cover_source, cover_checked_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10,'google-books',NOW())
-             ON CONFLICT (isbn) DO UPDATE SET
-               cover_url = CASE
-                 WHEN books.cover_url IS NULL OR books.cover_url = '' OR books.cover_url LIKE 'data:image/svg+xml%'
-                 THEN EXCLUDED.cover_url ELSE books.cover_url END,
-               cover_source = COALESCE(books.cover_source, EXCLUDED.cover_source),
-               cover_checked_at = NOW(),
-               active = TRUE
-             RETURNING id, (xmax = 0) AS was_inserted`,
+              (title,author,isbn,publisher,publication_year,category_id,shelf,description,
+               cover_url,active,school_id,cover_source,cover_checked_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,TRUE,$10,'open-library',NOW())
+             ON CONFLICT (isbn) DO NOTHING
+             RETURNING id`,
             [
-              title,
-              author,
-              isbn,
-              info.publisher ? String(info.publisher).slice(0, 120) : null,
-              extractPublicationYear(info.publishedDate),
-              categoryId,
-              shelf,
-              description,
-              cover,
-              schoolId
+              title, author, isbn, publisher, publicationYear, categoryId, shelf,
+              description, coverUrl, schoolId
             ]
           );
 
           const bookId = result.rows[0]?.id;
           if (!bookId) continue;
-          const wasInserted = Boolean(result.rows[0]?.was_inserted);
 
-          const copyAmount = total % 4 === 0 ? 3 : 2;
-          for (let copyNumber = 1; copyNumber <= copyAmount; copyNumber += 1) {
-            const inventoryCode = `AUTO-${String(bookId).replace(/-/g, "").slice(0, 10).toUpperCase()}-${copyNumber}`;
-            await pool.query(
-              `INSERT INTO book_copies (book_id, inventory_code, status, acquired_at, condition_notes)
-               VALUES ($1,$2,'available',CURRENT_DATE,'Exemplar do catálogo ampliado')
-               ON CONFLICT (inventory_code) DO NOTHING`,
-              [bookId, inventoryCode]
-            );
-          }
+          const copyAmount = total % 2 === 0 ? 2 : 1;
+          await createInventoryCodes(
+            { query: (...args) => pool.query(...args) },
+            bookId,
+            copyAmount,
+            new Date().toISOString().slice(0, 10),
+            "Exemplar do acervo escolar"
+          );
 
-          if (wasInserted) {
-            inserted += 1;
-            total += 1;
-          }
+          const record = {
+            id: bookId, title, author, isbn, active: true,
+            cover_url: coverUrl, cover_source: "open-library"
+          };
+          existingByIdentity.set(identity, record);
+          if (normalizedIsbn) existingIsbns.add(normalizedIsbn);
+          imported += 1;
+          total += 1;
+        } catch (error) {
+          console.warn(`Falha ao inserir "${title}": ${error.message}`);
         }
-      } catch (error) {
-        console.warn(`Falha ao importar catálogo "${search}":`, error.message);
       }
     }
   }
 
-  console.log(`Catálogo real ampliado: ${inserted} títulos processados; total aproximado ${total}.`);
+  console.log(
+    `Catálogo real concluído: ${total} títulos ativos; ${imported} novos; ${updatedCovers} capas atualizadas; ${requests} consultas externas.`
+  );
 }
 
 async function start() {
