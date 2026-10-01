@@ -2454,3 +2454,177 @@ CREATE INDEX IF NOT EXISTS reservations_book_status_created_idx
   ON reservations (book_id, status, created_at);
 
 COMMIT;
+
+
+-- BOOKSHARE V13: EXPANSAO ESCOLAR
+-- Amplia o cenário demonstrativo para uma escola de porte médio sem usar dados pessoais reais.
+BEGIN;
+
+WITH principal_school AS (
+  SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1
+),
+desired_classes(name, shift, teacher_name) AS (
+  VALUES
+    ('6º A','Manhã','Professora Ana Martins'),
+    ('6º B','Manhã','Professor Carlos Mendes'),
+    ('7º A','Manhã','Professora Juliana Rocha'),
+    ('7º B','Manhã','Professor Marcos Lima'),
+    ('8º A','Manhã','Professora Renata Alves'),
+    ('8º B','Manhã','Professor Daniel Souza'),
+    ('9º A','Manhã','Professora Patrícia Gomes'),
+    ('9º B','Manhã','Professor Eduardo Ribeiro'),
+    ('1º A','Tarde','Professora Fernanda Costa'),
+    ('1º B','Tarde','Professor Gustavo Moreira'),
+    ('2º A','Tarde','Professora Helena Cardoso'),
+    ('2º B','Tarde','Professor Rafael Santos'),
+    ('3º A','Tarde','Professora Camila Nunes'),
+    ('3º B','Tarde','Professor Bruno Ferreira')
+)
+INSERT INTO classes (name, shift, school_year, teacher_name, active, school_id)
+SELECT d.name, d.shift, 2026, d.teacher_name, TRUE, ps.id
+FROM desired_classes d
+CROSS JOIN principal_school ps
+ON CONFLICT (name, shift, school_year) DO UPDATE SET
+  teacher_name = EXCLUDED.teacher_name,
+  active = TRUE,
+  school_id = EXCLUDED.school_id,
+  updated_at = NOW();
+
+-- Mantém como ativas apenas as turmas do cenário principal de 2026.
+UPDATE classes c
+SET active = FALSE, updated_at = NOW()
+WHERE c.school_id = (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1)
+  AND c.school_year = 2026
+  AND NOT (
+    (c.name IN ('6º A','6º B','7º A','7º B','8º A','8º B','9º A','9º B') AND c.shift = 'Manhã')
+    OR
+    (c.name IN ('1º A','1º B','2º A','2º B','3º A','3º B') AND c.shift = 'Tarde')
+  );
+
+WITH principal_school AS (
+  SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1
+),
+active_classes AS (
+  SELECT
+    c.id,
+    ROW_NUMBER() OVER (ORDER BY c.shift, c.name) AS rn,
+    COUNT(*) OVER () AS total_classes
+  FROM classes c
+  CROSS JOIN principal_school ps
+  WHERE c.school_id = ps.id
+    AND c.school_year = 2026
+    AND c.active = TRUE
+),
+current_students AS (
+  SELECT COUNT(*)::INT AS total
+  FROM students s
+  CROSS JOIN principal_school ps
+  WHERE s.school_id = ps.id OR s.school_id IS NULL
+),
+sequence AS (
+  SELECT generate_series(total + 1, 600) AS n
+  FROM current_students
+),
+prepared AS (
+  SELECT
+    seq.n,
+    ac.id AS class_id,
+    ps.id AS school_id,
+    (ARRAY[
+      'Ana','Alice','Amanda','Beatriz','Bianca','Bruna','Camila','Carolina','Clara','Daniela',
+      'Eduarda','Elisa','Emanuela','Fernanda','Gabriela','Giovana','Helena','Isabela','Júlia','Larissa',
+      'Laura','Letícia','Lívia','Luana','Manuela','Mariana','Melissa','Natália','Nicole','Rafaela',
+      'Arthur','Bernardo','Bruno','Caio','Davi','Enzo','Felipe','Gabriel','Guilherme','Gustavo',
+      'Henrique','João','Leonardo','Lucas','Matheus','Miguel','Nicolas','Pedro','Rafael','Samuel',
+      'Thiago','Vinícius','Vitor','Wesley'
+    ])[1 + ((seq.n * 13 - 1) % 54)] AS first_name,
+    (ARRAY[
+      'Almeida','Alves','Barbosa','Cardoso','Carvalho','Costa','Ferreira','Gomes','Lima','Martins',
+      'Mendes','Monteiro','Moreira','Nascimento','Oliveira','Pereira','Ribeiro','Rocha','Rodrigues','Santos',
+      'Silva','Soares','Souza','Teixeira','Vieira','Freitas','Machado','Moraes','Nunes','Ramos'
+    ])[1 + ((seq.n * 7 - 1) % 30)] AS last_name_1,
+    (ARRAY[
+      'Almeida','Barros','Batista','Campos','Correia','Dias','Duarte','Freitas','Macedo','Machado',
+      'Marques','Melo','Moraes','Nunes','Pires','Ramos','Reis','Rezende','Sales','Tavares',
+      'Andrade','Azevedo','Castro','Farias','Lopes','Miranda','Neves','Prado','Queiroz','Xavier'
+    ])[1 + ((seq.n * 11 - 1) % 30)] AS last_name_2
+  FROM sequence seq
+  CROSS JOIN principal_school ps
+  JOIN active_classes ac
+    ON ac.rn = 1 + ((seq.n - 1) % ac.total_classes)
+)
+INSERT INTO students (
+  full_name, registration_number, class_id, roll_number,
+  guardian_contact, photo_url, notes, active, student_status, school_id
+)
+SELECT
+  first_name || ' ' || last_name_1 || ' ' || last_name_2,
+  'BS2026-' || LPAD(n::TEXT, 4, '0'),
+  class_id,
+  1 + ((n - 1) / 14),
+  '(41) 9' || LPAD((10000000 + ((n * 7919) % 89999999))::TEXT, 8, '0'),
+  'https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=' || encode(digest(('BS2026-' || n::TEXT), 'sha256'), 'hex'),
+  CASE
+    WHEN n % 17 = 0 THEN 'Participa do clube de leitura.'
+    WHEN n % 13 = 0 THEN 'Responsável prefere contato por telefone.'
+    WHEN n % 11 = 0 THEN 'Aluno frequente da biblioteca.'
+    ELSE 'Cadastro demonstrativo do BookShare.'
+  END,
+  TRUE,
+  'active',
+  school_id
+FROM prepared
+ON CONFLICT (registration_number) DO NOTHING;
+
+-- Redistribui o conjunto demonstrativo entre as turmas ativas e atribui avatares gerados.
+WITH principal_school AS (
+  SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1
+),
+active_classes AS (
+  SELECT
+    c.id,
+    ROW_NUMBER() OVER (ORDER BY c.shift, c.name) AS rn,
+    COUNT(*) OVER () AS total_classes
+  FROM classes c
+  CROSS JOIN principal_school ps
+  WHERE c.school_id = ps.id
+    AND c.school_year = 2026
+    AND c.active = TRUE
+),
+ranked_students AS (
+  SELECT
+    s.id,
+    s.registration_number,
+    ROW_NUMBER() OVER (ORDER BY s.registration_number, s.id) AS rn
+  FROM students s
+  CROSS JOIN principal_school ps
+  WHERE (s.school_id = ps.id OR s.school_id IS NULL)
+    AND s.active = TRUE
+),
+mapping AS (
+  SELECT
+    rs.id,
+    rs.registration_number,
+    ac.id AS class_id,
+    1 + ((rs.rn - 1) / ac.total_classes) AS roll_number
+  FROM ranked_students rs
+  JOIN active_classes ac
+    ON ac.rn = 1 + ((rs.rn - 1) % ac.total_classes)
+)
+UPDATE students s
+SET
+  class_id = m.class_id,
+  roll_number = m.roll_number,
+  school_id = (SELECT id FROM principal_school),
+  photo_url = COALESCE(
+    NULLIF(s.photo_url, ''),
+    'https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=' ||
+      encode(digest(m.registration_number, 'sha256'), 'hex')
+  ),
+  active = TRUE,
+  student_status = 'active',
+  updated_at = NOW()
+FROM mapping m
+WHERE s.id = m.id;
+
+COMMIT;
