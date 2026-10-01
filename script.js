@@ -33,6 +33,14 @@ function apiUrl(path) {
   return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function mediaUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text) || /^data:image\//i.test(text)) return text;
+  if (text.startsWith("/")) return apiUrl(text);
+  return apiUrl(`/${text.replace(/^\/+/, "")}`);
+}
+
 function wakeApi() {
   if (!API_BASE_URL) return;
   fetch(apiUrl("/api/health"), { cache: "no-store" }).catch(() => {});
