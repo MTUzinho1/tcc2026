@@ -2063,7 +2063,6 @@ function bindForms() {
   $("#login-back-button")?.addEventListener("click", showLanding);
   $("#login-form")?.addEventListener("submit", handleLogin);
   $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
-  $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
   $("#loan-form")?.addEventListener("submit", saveLoan);
   $("#return-form")?.addEventListener("submit", saveReturn);
   $("#book-form")?.addEventListener("submit", saveBook);
