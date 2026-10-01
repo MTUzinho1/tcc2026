@@ -9425,8 +9425,10 @@ async function ensureDemoSchoolScale() {
     const classId = classIds[(n - 1) % classIds.length];
     const rollNumber = 1 + Math.floor((n - 1) / classIds.length);
     const guardianContact = `(41) 9${String(10000000 + ((n * 7919) % 89999999)).padStart(8, "0")}`;
-    const avatarSeed = crypto.createHash("sha256").update(registration).digest("hex");
-    const photoUrl = `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${avatarSeed}`;
+    const photoHash = crypto.createHash("sha256").update(registration).digest();
+    const photoGender = photoHash[0] % 2 === 0 ? "women" : "men";
+    const photoIndex = photoHash.readUInt16BE(1) % 100;
+    const photoUrl = `https://randomuser.me/api/portraits/med/${photoGender}/${photoIndex}.jpg`;
     const notes = n % 17 === 0
       ? "Participa do clube de leitura."
       : n % 13 === 0
@@ -9457,13 +9459,19 @@ async function ensureDemoSchoolScale() {
     const student = studentsResult.rows[index];
     const classId = classIds[index % classIds.length];
     const rollNumber = 1 + Math.floor(index / classIds.length);
-    const avatarSeed = crypto.createHash("sha256").update(student.registration_number).digest("hex");
+    const photoHash = crypto.createHash("sha256").update(student.registration_number).digest();
+    const photoGender = photoHash[0] % 2 === 0 ? "women" : "men";
+    const photoIndex = photoHash.readUInt16BE(1) % 100;
+    const demoPhotoUrl = `https://randomuser.me/api/portraits/med/${photoGender}/${photoIndex}.jpg`;
     await pool.query(
       `UPDATE students
        SET class_id = $1,
            roll_number = $2,
            school_id = $3,
-           photo_url = COALESCE(NULLIF(photo_url,''), $4),
+           photo_url = CASE
+             WHEN photo_url IS NULL OR photo_url = '' OR photo_url ILIKE '%dicebear%'
+             THEN $4 ELSE photo_url
+           END,
            active = TRUE,
            student_status = 'active',
            updated_at = NOW()
@@ -9472,7 +9480,7 @@ async function ensureDemoSchoolScale() {
         classId,
         rollNumber,
         schoolId,
-        `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${avatarSeed}`,
+        demoPhotoUrl,
         student.id
       ]
     );
