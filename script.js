@@ -2060,6 +2060,7 @@ function bindPageActions() {
 }
 
 function bindForms() {
+  $("#login-back-button")?.addEventListener("click", showLanding);
   $("#login-form")?.addEventListener("submit", handleLogin);
   $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
   $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
