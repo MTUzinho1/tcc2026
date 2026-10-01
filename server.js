@@ -9306,7 +9306,7 @@ async function clearUnverifiedBookCovers() {
 
 
 const AUTO_EXPAND_CATALOG = String(process.env.AUTO_EXPAND_CATALOG ?? "true").toLowerCase() !== "false";
-const DEMO_CATALOG_TARGET = Math.max(100, Math.min(700, Number(process.env.DEMO_CATALOG_TARGET || 450)));
+const DEMO_CATALOG_TARGET = Math.max(100, Math.min(700, Number(process.env.DEMO_CATALOG_TARGET || 350)));
 
 function normalizeGoogleCover(url) {
   if (!url) return null;
@@ -9339,6 +9339,163 @@ function chooseCatalogCategory(title, categories = []) {
     }
   }
   return categories[0]?.id || null;
+}
+
+
+async function ensureDemoSchoolScale() {
+  const principal = await pool.query("SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1");
+  const schoolId = principal.rows[0]?.id;
+  if (!schoolId) return;
+
+  const desiredClasses = [
+    ["6º A","Manhã","Professora Ana Martins"], ["6º B","Manhã","Professor Carlos Mendes"],
+    ["7º A","Manhã","Professora Juliana Rocha"], ["7º B","Manhã","Professor Marcos Lima"],
+    ["8º A","Manhã","Professora Renata Alves"], ["8º B","Manhã","Professor Daniel Souza"],
+    ["9º A","Manhã","Professora Patrícia Gomes"], ["9º B","Manhã","Professor Eduardo Ribeiro"],
+    ["1º A","Tarde","Professora Fernanda Costa"], ["1º B","Tarde","Professor Gustavo Moreira"],
+    ["2º A","Tarde","Professora Helena Cardoso"], ["2º B","Tarde","Professor Rafael Santos"],
+    ["3º A","Tarde","Professora Camila Nunes"], ["3º B","Tarde","Professor Bruno Ferreira"]
+  ];
+
+  for (const [name, shift, teacherName] of desiredClasses) {
+    await pool.query(
+      `INSERT INTO classes (name, shift, school_year, teacher_name, active, school_id)
+       VALUES ($1,$2,2026,$3,TRUE,$4)
+       ON CONFLICT (name, shift, school_year) DO UPDATE SET
+         teacher_name = EXCLUDED.teacher_name,
+         active = TRUE,
+         school_id = EXCLUDED.school_id,
+         updated_at = NOW()`,
+      [name, shift, teacherName, schoolId]
+    );
+  }
+
+  // Mantém somente o conjunto principal de turmas de 2026 ativo no cenário demonstrativo.
+  await pool.query(
+    `UPDATE classes
+     SET active = FALSE, updated_at = NOW()
+     WHERE school_id = $1
+       AND school_year = 2026
+       AND NOT (
+         (name = ANY($2::text[]) AND shift = 'Manhã')
+         OR
+         (name = ANY($3::text[]) AND shift = 'Tarde')
+       )`,
+    [
+      schoolId,
+      ["6º A","6º B","7º A","7º B","8º A","8º B","9º A","9º B"],
+      ["1º A","1º B","2º A","2º B","3º A","3º B"]
+    ]
+  );
+
+  const classesResult = await pool.query(
+    `SELECT id
+     FROM classes
+     WHERE school_id = $1 AND school_year = 2026 AND active = TRUE
+       AND (
+         (name = ANY($2::text[]) AND shift = 'Manhã')
+         OR
+         (name = ANY($3::text[]) AND shift = 'Tarde')
+       )
+     ORDER BY shift, name`,
+    [
+      schoolId,
+      ["6º A","6º B","7º A","7º B","8º A","8º B","9º A","9º B"],
+      ["1º A","1º B","2º A","2º B","3º A","3º B"]
+    ]
+  );
+  const classIds = classesResult.rows.map(row => row.id);
+  if (!classIds.length) return;
+
+  const totalResult = await pool.query(
+    "SELECT COUNT(*)::INT AS total FROM students WHERE school_id = $1 OR school_id IS NULL",
+    [schoolId]
+  );
+  let total = Number(totalResult.rows[0]?.total || 0);
+
+  const firstNames = [
+    "Ana","Alice","Amanda","Beatriz","Bianca","Bruna","Camila","Carolina","Clara","Daniela",
+    "Eduarda","Elisa","Emanuela","Fernanda","Gabriela","Giovana","Helena","Isabela","Júlia","Larissa",
+    "Laura","Letícia","Lívia","Luana","Manuela","Mariana","Melissa","Natália","Nicole","Rafaela",
+    "Arthur","Bernardo","Bruno","Caio","Davi","Enzo","Felipe","Gabriel","Guilherme","Gustavo",
+    "Henrique","João","Leonardo","Lucas","Matheus","Miguel","Nicolas","Pedro","Rafael","Samuel",
+    "Thiago","Vinícius","Vitor","Wesley"
+  ];
+  const surnamesA = [
+    "Almeida","Alves","Barbosa","Cardoso","Carvalho","Costa","Ferreira","Gomes","Lima","Martins",
+    "Mendes","Monteiro","Moreira","Nascimento","Oliveira","Pereira","Ribeiro","Rocha","Rodrigues","Santos",
+    "Silva","Soares","Souza","Teixeira","Vieira","Freitas","Machado","Moraes","Nunes","Ramos"
+  ];
+  const surnamesB = [
+    "Almeida","Barros","Batista","Campos","Correia","Dias","Duarte","Freitas","Macedo","Machado",
+    "Marques","Melo","Moraes","Nunes","Pires","Ramos","Reis","Rezende","Sales","Tavares",
+    "Andrade","Azevedo","Castro","Farias","Lopes","Miranda","Neves","Prado","Queiroz","Xavier"
+  ];
+
+  for (let n = total + 1; n <= 600; n += 1) {
+    const registration = `BS2026-${String(n).padStart(4, "0")}`;
+    const fullName = [
+      firstNames[(n * 13 - 1) % firstNames.length],
+      surnamesA[(n * 7 - 1) % surnamesA.length],
+      surnamesB[(n * 11 - 1) % surnamesB.length]
+    ].join(" ");
+    const classId = classIds[(n - 1) % classIds.length];
+    const rollNumber = 1 + Math.floor((n - 1) / classIds.length);
+    const guardianContact = `(41) 9${String(10000000 + ((n * 7919) % 89999999)).padStart(8, "0")}`;
+    const avatarSeed = crypto.createHash("sha256").update(registration).digest("hex");
+    const photoUrl = `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${avatarSeed}`;
+    const notes = n % 17 === 0
+      ? "Participa do clube de leitura."
+      : n % 13 === 0
+        ? "Responsável prefere contato por telefone."
+        : n % 11 === 0
+          ? "Aluno frequente da biblioteca."
+          : "Cadastro demonstrativo do BookShare.";
+
+    await pool.query(
+      `INSERT INTO students
+        (full_name, registration_number, class_id, roll_number, guardian_contact, photo_url,
+         notes, active, student_status, school_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,'active',$8)
+       ON CONFLICT (registration_number) DO NOTHING`,
+      [fullName, registration, classId, rollNumber, guardianContact, photoUrl, notes, schoolId]
+    );
+  }
+
+  const studentsResult = await pool.query(
+    `SELECT id, registration_number
+     FROM students
+     WHERE school_id = $1 OR school_id IS NULL
+     ORDER BY registration_number, id`,
+    [schoolId]
+  );
+
+  for (let index = 0; index < studentsResult.rows.length; index += 1) {
+    const student = studentsResult.rows[index];
+    const classId = classIds[index % classIds.length];
+    const rollNumber = 1 + Math.floor(index / classIds.length);
+    const avatarSeed = crypto.createHash("sha256").update(student.registration_number).digest("hex");
+    await pool.query(
+      `UPDATE students
+       SET class_id = $1,
+           roll_number = $2,
+           school_id = $3,
+           photo_url = COALESCE(NULLIF(photo_url,''), $4),
+           active = TRUE,
+           student_status = 'active',
+           updated_at = NOW()
+       WHERE id = $5`,
+      [
+        classId,
+        rollNumber,
+        schoolId,
+        `https://api.dicebear.com/9.x/avataaars-neutral/svg?seed=${avatarSeed}`,
+        student.id
+      ]
+    );
+  }
+
+  console.log(`Base demonstrativa ajustada: ${studentsResult.rows.length} alunos em ${classIds.length} turmas.`);
 }
 
 async function ensureLargeRealCatalog() {
@@ -9514,6 +9671,8 @@ async function start() {
 
     await ensureInitialUsers();
 
+    await ensureDemoSchoolScale();
+
     await primeCoverPlaceholderHashes();
 
     await clearUnverifiedBookCovers();
@@ -9527,11 +9686,9 @@ async function start() {
  
 
       setTimeout(() => {
-
-        syncBookCovers({ force: false })
-
-          .catch(error => console.error("Falha na sincronização das capas originais:", error));
-
+        ensureLargeRealCatalog()
+          .then(() => syncBookCovers({ force: false }))
+          .catch(error => console.error("Falha ao ampliar catálogo ou sincronizar capas:", error));
       }, 3000);
 
     });

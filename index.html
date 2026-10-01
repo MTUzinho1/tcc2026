@@ -51,6 +51,97 @@
 
  
 
+
+  <section id="landing-view" class="landing-view is-hidden">
+    <header class="landing-header">
+      <a class="landing-brand" href="#" aria-label="BookShare">
+        <span class="landing-brand__mark">BS</span>
+        <span><strong>BookShare</strong><small>Biblioteca Escolar</small></span>
+      </a>
+      <button id="landing-login-top" class="button button--primary landing-login-button" type="button">Entrar no sistema</button>
+    </header>
+
+    <main class="landing-main">
+      <section class="landing-hero">
+        <div class="landing-hero__copy">
+          <p class="landing-kicker">Gestão de biblioteca escolar</p>
+          <h1>Organizar a biblioteca pode ser simples.</h1>
+          <p class="landing-lead">Alunos, livros, empréstimos, devoluções e reservas em um único sistema, com telas claras e ações fáceis de encontrar.</p>
+          <div class="landing-actions">
+            <button id="landing-login-main" class="button button--primary button--large landing-login-button" type="button">Entrar no BookShare</button>
+            <a class="button button--secondary button--large" href="#landing-recursos">Conhecer recursos</a>
+          </div>
+          <div class="landing-trust">
+            <span>✓ Fácil de usar</span>
+            <span>✓ Histórico organizado</span>
+            <span>✓ Acesso por perfil</span>
+          </div>
+        </div>
+
+        <div class="landing-preview" aria-label="Resumo visual do sistema">
+          <div class="landing-preview__top">
+            <span class="landing-preview__logo">BS</span>
+            <div><strong>Visão geral</strong><small>Biblioteca Escolar</small></div>
+          </div>
+          <div class="landing-preview__metrics">
+            <article><small>Alunos</small><strong>600</strong></article>
+            <article><small>Turmas</small><strong>14</strong></article>
+            <article><small>Livros</small><strong>350+</strong></article>
+          </div>
+          <div class="landing-preview__task">
+            <span>1</span>
+            <div><strong>Encontre o aluno</strong><small>Busque pelo nome ou matrícula.</small></div>
+          </div>
+          <div class="landing-preview__task">
+            <span>2</span>
+            <div><strong>Selecione o livro</strong><small>Veja disponibilidade e exemplar.</small></div>
+          </div>
+          <div class="landing-preview__task">
+            <span>3</span>
+            <div><strong>Confirme o empréstimo</strong><small>O histórico é atualizado automaticamente.</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="landing-recursos" class="landing-features">
+        <div class="landing-section-heading">
+          <p class="landing-kicker">Tudo no lugar certo</p>
+          <h2>Feito para o trabalho diário da biblioteca</h2>
+          <p>Sem telas lotadas e sem exigir conhecimento técnico para realizar as tarefas mais comuns.</p>
+        </div>
+        <div class="landing-feature-grid">
+          <article><span>⌕</span><h3>Atendimento rápido</h3><p>Encontre alunos e livros com poucos cliques e registre empréstimos ou devoluções.</p></article>
+          <article><span>▤</span><h3>Acervo organizado</h3><p>Títulos e exemplares separados, com situação e disponibilidade sempre visíveis.</p></article>
+          <article><span>◷</span><h3>Prazos e atrasos</h3><p>Acompanhe o que vence hoje, empréstimos atrasados e reservas prontas.</p></article>
+          <article><span>◎</span><h3>Histórico completo</h3><p>Consulte movimentações de alunos e registros importantes sem procurar em papel.</p></article>
+        </div>
+      </section>
+
+      <section class="landing-workflow">
+        <div>
+          <p class="landing-kicker">Menos complicação</p>
+          <h2>O sistema mostra o que fazer.</h2>
+          <p>Botões maiores, textos diretos, bom contraste e navegação previsível ajudam a equipe a trabalhar com segurança, mesmo para quem não tem familiaridade com sistemas complexos.</p>
+        </div>
+        <div class="landing-workflow__list">
+          <div><b>01</b><span><strong>Buscar</strong><small>Aluno, livro, matrícula ou exemplar.</small></span></div>
+          <div><b>02</b><span><strong>Conferir</strong><small>Dados e disponibilidade antes de confirmar.</small></span></div>
+          <div><b>03</b><span><strong>Registrar</strong><small>Empréstimo, devolução, reserva ou aviso.</small></span></div>
+        </div>
+      </section>
+
+      <section class="landing-final">
+        <div><p class="landing-kicker">BookShare</p><h2>Uma biblioteca mais organizada começa por uma rotina mais simples.</h2></div>
+        <button class="button button--primary button--large landing-login-button" type="button">Acessar o sistema</button>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      <strong>BookShare</strong>
+      <span>Projeto acadêmico de gestão de biblioteca escolar.</span>
+    </footer>
+  </section>
+
   <section id="auth-view" class="auth-view auth-view--clean is-hidden">
     <main class="login-shell" aria-labelledby="login-title">
       <section class="login-intro" aria-label="Apresentação do BookShare">
@@ -86,6 +177,7 @@
       </section>
 
       <section class="login-panel">
+        <button id="login-back-button" class="login-back-button" type="button" aria-label="Voltar para a apresentação do BookShare">← Voltar</button>
         <div class="login-panel__mobile-brand" aria-hidden="true">
           <span>BS</span><strong>BookShare</strong>
         </div>
@@ -97,8 +189,8 @@
 
         <header class="login-panel__heading">
           <span>BookShare</span>
-          <h2 id="login-title">Entrar na biblioteca</h2>
-          <p>Use seu e-mail e sua senha para acessar.</p>
+          <h2 id="login-title">Entrar no BookShare</h2>
+          <p>Informe seu e-mail e sua senha para continuar.</p>
         </header>
 
         <form id="login-form" class="login-form" novalidate>
@@ -126,7 +218,7 @@
           </button>
         </form>
 
-        <p class="login-help">Não consegue entrar? Fale com o administrador da escola.</p>
+        <p class="login-help"><strong>Precisa de ajuda?</strong> Fale com o administrador da escola.</p>
         <div id="api-connection-hint" class="api-connection-hint is-hidden"></div>
       </section>
     </main>

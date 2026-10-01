@@ -377,7 +377,16 @@ function updateWelcomeMessage() {
   if (homeAvatar) homeAvatar.innerHTML = state.user.avatar_url ? `<img src="${escapeHTML(state.user.avatar_url)}" alt="">` : initials(state.user.name);
 }
 
+function showLanding() {
+  $("#landing-view")?.classList.remove("is-hidden");
+  $("#auth-view")?.classList.add("is-hidden");
+  $("#app-view")?.classList.add("is-hidden");
+  setLoading(false);
+  window.scrollTo({ top: 0, behavior: "auto" });
+}
+
 function showAuth() {
+  $("#landing-view")?.classList.add("is-hidden");
   $("#auth-view")?.classList.remove("is-hidden");
   $("#app-view")?.classList.add("is-hidden");
   setLoading(false);
@@ -385,6 +394,7 @@ function showAuth() {
 }
 
 function showApp() {
+  $("#landing-view")?.classList.add("is-hidden");
   $("#auth-view")?.classList.add("is-hidden");
   $("#app-view")?.classList.remove("is-hidden");
   setTimeout(() => setLoading(false), 250);
@@ -439,11 +449,11 @@ function logout(showMessage = true) {
   Object.keys(state.caches).forEach(key => state.caches[key] = []);
   if (state.notificationTimer) clearInterval(state.notificationTimer);
   if (showMessage) toast("Sessão encerrada.");
-  showAuth();
+  showLanding();
 }
 
 async function restoreSession() {
-  if (!state.token) return showAuth();
+  if (!state.token) return showLanding();
   try {
     const payload = await api("/api/auth/me", { timeoutMs: 10000 });
     state.user = payload.user;
@@ -2050,7 +2060,10 @@ function bindPageActions() {
 }
 
 function bindForms() {
+  $("#login-back-button")?.addEventListener("click", showLanding);
   $("#login-form")?.addEventListener("submit", handleLogin);
+  $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
+  $(".landing-login-button").forEach(button => button.addEventListener("click", showAuth));
   $("#loan-form")?.addEventListener("submit", saveLoan);
   $("#return-form")?.addEventListener("submit", saveReturn);
   $("#book-form")?.addEventListener("submit", saveBook);
@@ -2151,7 +2164,7 @@ async function boot() {
   const bootWatchdog = setTimeout(() => {
     const loading = $("#app-loading");
     if (loading && !loading.classList.contains("is-hidden")) {
-      state.user ? showApp() : showAuth();
+      state.user ? showApp() : showLanding();
     }
   }, 7000);
 
@@ -2160,11 +2173,15 @@ async function boot() {
   bindFilters();
   bindPageActions();
   bindForms();
+  // landing-login-delegation
+  document.addEventListener("click", event => {
+    if (event.target.closest(".landing-login-button")) showAuth();
+  });
   bindPasswordToggle();
   bindKeyboard();
   setupInitialBookView();
   setupWelcomeBookCarousel();
-  if (!state.token) showAuth();
+  if (!state.token) showLanding();
   await loadApiConfig();
   wakeApi();
 
