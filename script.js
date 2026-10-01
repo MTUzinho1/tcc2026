@@ -137,6 +137,14 @@ function initials(name) {
   return (parts[0][0] + (parts.length > 1 ? parts.at(-1)[0] : "")).toUpperCase();
 }
 
+function studentPhotoMarkup(student, altText = "") {
+  const url = String(student?.photo_url || "").trim();
+  if (url) {
+    return `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(url))}" alt="${escapeHTML(altText || student?.full_name || "Aluno")}">`;
+  }
+  return escapeHTML(initials(student?.full_name));
+}
+
 function number(value) {
   return Number(value || 0).toLocaleString("pt-BR");
 }
@@ -791,7 +799,7 @@ function renderServiceSearch() {
   if (!students.length) return showEmpty(results, "Aluno não encontrado", "Digite parte do nome ou da matrícula.", "⌕");
   results.innerHTML = students.map(student => `
     <button class="service-result" data-service-student="${escapeHTML(student.id)}">
-      <span class="card-identity__avatar">${escapeHTML(initials(student.full_name))}</span>
+      <span class="card-identity__avatar">${studentPhotoMarkup(student)}</span>
       <span><strong>${escapeHTML(student.full_name)}</strong><small>${escapeHTML(student.class_name || "Sem turma")} · ${escapeHTML(student.registration_number)}</small></span>
       <b>→</b>
     </button>`).join("");
@@ -817,7 +825,7 @@ function renderServiceStudent(payload) {
   container.innerHTML = `
     <div class="service-student-card">
       <div class="service-student-card__head">
-        <span class="card-identity__avatar">${escapeHTML(initials(student.full_name))}</span>
+        <span class="card-identity__avatar">${studentPhotoMarkup(student)}</span>
         <div><p class="eyebrow">Aluno selecionado</p><h3>${escapeHTML(student.full_name)}</h3><small>${escapeHTML(student.class_name || "Sem turma")} · Matrícula ${escapeHTML(student.registration_number)}</small></div>
       </div>
       <div class="student-card__stats">
@@ -889,7 +897,7 @@ function renderStudents() {
       <article class="student-card">
         <div class="student-card__header">
           <div class="card-identity">
-            <span class="card-identity__avatar">${student.photo_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(student.photo_url)}" alt="">` : escapeHTML(initials(student.full_name))}</span>
+            <span class="card-identity__avatar">${studentPhotoMarkup(student)}</span>
             <div><h3>${escapeHTML(student.full_name)}</h3><p>${escapeHTML(student.class_name || "Sem turma")} · nº ${escapeHTML(student.roll_number || "—")}</p><small>Matrícula ${escapeHTML(student.registration_number)}</small></div>
           </div>
           ${studentStatusBadge(student, overdue)}
