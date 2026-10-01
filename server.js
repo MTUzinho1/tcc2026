@@ -9325,6 +9325,83 @@ function chooseCatalogCategory(title, categories = []) {
 }
 
 
+const DEMO_FEMALE_FIRST_NAMES = new Set([
+  "Ana","Alice","Amanda","Beatriz","Bianca","Bruna","Camila","Carolina","Clara","Daniela",
+  "Eduarda","Elisa","Emanuela","Fernanda","Gabriela","Giovana","Helena","Isabela","Júlia","Larissa",
+  "Laura","Letícia","Lívia","Luana","Manuela","Mariana","Melissa","Natália","Nicole","Rafaela"
+]);
+
+const DEMO_STUDENT_PHOTO_POOLS = {
+  younger: {
+    female: [
+      "https://unsplash.com/photos/U6cFrZEgX5k/download?force=true&w=256",
+      "https://unsplash.com/photos/ZnP9JIE8vxg/download?force=true&w=256",
+      "https://unsplash.com/photos/qpU74JWC4-s/download?force=true&w=256",
+      "https://unsplash.com/photos/sj5y5NHwj3Q/download?force=true&w=256",
+      "https://unsplash.com/photos/XbxQbS1NMKE/download?force=true&w=256"
+    ],
+    male: [
+      "https://unsplash.com/photos/SPEwrzxzvX4/download?force=true&w=256",
+      "https://unsplash.com/photos/JVJnQl1pXt4/download?force=true&w=256",
+      "https://unsplash.com/photos/oJT1iXkpHJo/download?force=true&w=256",
+      "https://unsplash.com/photos/jHD5_3z8w2c/download?force=true&w=256",
+      "https://unsplash.com/photos/DmnUnZvq-OQ/download?force=true&w=256"
+    ]
+  },
+  teen: {
+    female: [
+      "https://unsplash.com/photos/Q76DPRQ3Ix0/download?force=true&w=256",
+      "https://unsplash.com/photos/6xv4A1VA1rU/download?force=true&w=256",
+      "https://unsplash.com/photos/mv_9tSfM7k8/download?force=true&w=256",
+      "https://unsplash.com/photos/dQicWidzYys/download?force=true&w=256",
+      "https://unsplash.com/photos/1hSU8YQ6DtE/download?force=true&w=256"
+    ],
+    male: [
+      "https://unsplash.com/photos/c0Qy3T7fCiY/download?force=true&w=256",
+      "https://unsplash.com/photos/TfVOI-_PRSc/download?force=true&w=256",
+      "https://unsplash.com/photos/J1olZQ8qiIE/download?force=true&w=256",
+      "https://unsplash.com/photos/UTsC_bQeDAY/download?force=true&w=256",
+      "https://unsplash.com/photos/bdsVIoftQEY/download?force=true&w=256"
+    ]
+  },
+  high: {
+    female: [
+      "https://unsplash.com/photos/YhMFYJZgMA0/download?force=true&w=256",
+      "https://unsplash.com/photos/Ef3AOkt6hHg/download?force=true&w=256",
+      "https://unsplash.com/photos/o3LD5ZDQvRk/download?force=true&w=256",
+      "https://unsplash.com/photos/tEOF3wqcJIA/download?force=true&w=256",
+      "https://unsplash.com/photos/UGNVMLyQKtA/download?force=true&w=256"
+    ],
+    male: [
+      "https://unsplash.com/photos/c0Qy3T7fCiY/download?force=true&w=256",
+      "https://unsplash.com/photos/TfVOI-_PRSc/download?force=true&w=256",
+      "https://unsplash.com/photos/J1olZQ8qiIE/download?force=true&w=256",
+      "https://unsplash.com/photos/m1lfvaIX5EI/download?force=true&w=256",
+      "https://unsplash.com/photos/bdsVIoftQEY/download?force=true&w=256"
+    ]
+  }
+};
+
+function demoStudentAgeGroup(className) {
+  const value = String(className || "");
+  if (/^[67]º/.test(value)) return "younger";
+  if (/^[89]º/.test(value)) return "teen";
+  return "high";
+}
+
+function demoStudentPhotoUrl(registration, className, fullName) {
+  if (registration === "BS2026-0361") {
+    return "https://randomuser.me/api/portraits/med/men/80.jpg";
+  }
+
+  const firstName = String(fullName || "").trim().split(/\s+/)[0] || "";
+  const gender = DEMO_FEMALE_FIRST_NAMES.has(firstName) ? "female" : "male";
+  const group = demoStudentAgeGroup(className);
+  const pool = DEMO_STUDENT_PHOTO_POOLS[group][gender];
+  const hash = crypto.createHash("sha256").update(String(registration || fullName || "student")).digest();
+  return pool[hash.readUInt16BE(0) % pool.length];
+}
+
 async function ensureDemoSchoolScale() {
   const principal = await pool.query("SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1");
   const schoolId = principal.rows[0]?.id;
@@ -9372,7 +9449,7 @@ async function ensureDemoSchoolScale() {
   );
 
   const classesResult = await pool.query(
-    `SELECT id
+    `SELECT id, name
      FROM classes
      WHERE school_id = $1 AND school_year = 2026 AND active = TRUE
        AND (
@@ -9387,8 +9464,9 @@ async function ensureDemoSchoolScale() {
       ["1º A","1º B","2º A","2º B","3º A","3º B"]
     ]
   );
-  const classIds = classesResult.rows.map(row => row.id);
-  if (!classIds.length) return;
+  const classRows = classesResult.rows;
+  const classIds = classRows.map(row => row.id);
+  if (!classRows.length) return;
 
   const totalResult = await pool.query(
     "SELECT COUNT(*)::INT AS total FROM students WHERE school_id = $1 OR school_id IS NULL",
@@ -9422,13 +9500,11 @@ async function ensureDemoSchoolScale() {
       surnamesA[(n * 7 - 1) % surnamesA.length],
       surnamesB[(n * 11 - 1) % surnamesB.length]
     ].join(" ");
-    const classId = classIds[(n - 1) % classIds.length];
-    const rollNumber = 1 + Math.floor((n - 1) / classIds.length);
+    const classRow = classRows[(n - 1) % classRows.length];
+    const classId = classRow.id;
+    const rollNumber = 1 + Math.floor((n - 1) / classRows.length);
     const guardianContact = `(41) 9${String(10000000 + ((n * 7919) % 89999999)).padStart(8, "0")}`;
-    const photoHash = crypto.createHash("sha256").update(registration).digest();
-    const photoGender = photoHash[0] % 2 === 0 ? "women" : "men";
-    const photoIndex = photoHash.readUInt16BE(1) % 100;
-    const photoUrl = `https://randomuser.me/api/portraits/med/${photoGender}/${photoIndex}.jpg`;
+    const photoUrl = demoStudentPhotoUrl(registration, classRow.name, fullName);
     const notes = n % 17 === 0
       ? "Participa do clube de leitura."
       : n % 13 === 0
@@ -9448,7 +9524,7 @@ async function ensureDemoSchoolScale() {
   }
 
   const studentsResult = await pool.query(
-    `SELECT id, registration_number
+    `SELECT id, registration_number, full_name, photo_url
      FROM students
      WHERE school_id = $1 OR school_id IS NULL
      ORDER BY registration_number, id`,
@@ -9457,20 +9533,20 @@ async function ensureDemoSchoolScale() {
 
   for (let index = 0; index < studentsResult.rows.length; index += 1) {
     const student = studentsResult.rows[index];
-    const classId = classIds[index % classIds.length];
-    const rollNumber = 1 + Math.floor(index / classIds.length);
-    const photoHash = crypto.createHash("sha256").update(student.registration_number).digest();
-    const photoGender = photoHash[0] % 2 === 0 ? "women" : "men";
-    const photoIndex = photoHash.readUInt16BE(1) % 100;
-    const demoPhotoUrl = `https://randomuser.me/api/portraits/med/${photoGender}/${photoIndex}.jpg`;
+    const classRow = classRows[index % classRows.length];
+    const classId = classRow.id;
+    const rollNumber = 1 + Math.floor(index / classRows.length);
+    const demoPhotoUrl = demoStudentPhotoUrl(student.registration_number, classRow.name, student.full_name);
     await pool.query(
       `UPDATE students
        SET class_id = $1,
            roll_number = $2,
            school_id = $3,
            photo_url = CASE
-             WHEN photo_url IS NULL OR photo_url = '' OR photo_url ILIKE '%dicebear%'
-             THEN $4 ELSE photo_url
+             WHEN registration_number = 'BS2026-0361' THEN photo_url
+             WHEN registration_number LIKE 'BS2026-%' THEN $4
+             WHEN photo_url IS NULL OR photo_url = '' OR photo_url ILIKE '%dicebear%' THEN $4
+             ELSE photo_url
            END,
            active = TRUE,
            student_status = 'active',
