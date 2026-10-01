@@ -2172,6 +2172,10 @@ async function boot() {
   bindFilters();
   bindPageActions();
   bindForms();
+  // landing-login-delegation
+  document.addEventListener("click", event => {
+    if (event.target.closest(".landing-login-button")) showAuth();
+  });
   bindPasswordToggle();
   bindKeyboard();
   setupInitialBookView();
