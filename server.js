@@ -9518,6 +9518,76 @@ function chooseOpenLibraryIsbn(values) {
     || null;
 }
 
+async function backfillMissingBookCovers() {
+  const missing = await pool.query(
+    `SELECT id,title,author
+     FROM books
+     WHERE active=TRUE
+       AND COALESCE(NULLIF(TRIM(cover_url),''),'')=''
+     ORDER BY title
+     LIMIT 30`
+  );
+
+  if (!missing.rows.length) {
+    console.log("Capas faltantes: nenhuma.");
+    return { total: 0, updated: 0 };
+  }
+
+  let updated = 0;
+
+  for (let index = 0; index < missing.rows.length; index += 1) {
+    const book = missing.rows[index];
+    if (index > 0) await delay(1100);
+
+    try {
+      const url = new URL("https://openlibrary.org/search.json");
+      url.searchParams.set("title", book.title);
+      url.searchParams.set("author", book.author || "");
+      url.searchParams.set("lang", "pt");
+      url.searchParams.set("limit", "5");
+      url.searchParams.set("fields", "key,title,author_name,cover_i,isbn");
+
+      const payload = await fetchCatalogJson(url, `Capa Open Library: ${book.title}`);
+      const match = (payload?.docs || []).find(item => Number(item.cover_i || 0) > 0);
+
+      if (match?.cover_i) {
+        const coverUrl = `https://covers.openlibrary.org/b/id/${Number(match.cover_i)}-M.jpg`;
+        await pool.query(
+          `UPDATE books
+           SET cover_url=$1,
+               cover_source='open-library',
+               cover_checked_at=NOW(),
+               updated_at=NOW()
+           WHERE id=$2`,
+          [coverUrl, book.id]
+        );
+        updated += 1;
+        continue;
+      }
+
+      const googleCover = await coverFromGoogleSearch(book.title, book.author || "");
+      if (googleCover) {
+        const dataUri = `data:${googleCover.contentType};base64,${googleCover.buffer.toString("base64")}`;
+        await pool.query(
+          `UPDATE books
+           SET cover_url=$1,
+               cover_source='verified-original-v30',
+               cover_checked_at=NOW(),
+               updated_at=NOW()
+           WHERE id=$2`,
+          [dataUri, book.id]
+        );
+        updated += 1;
+      }
+    } catch (error) {
+      console.warn(`Falha ao preencher capa de "${book.title}": ${error.message}`);
+    }
+  }
+
+  console.log(`Capas faltantes revisadas: ${updated}/${missing.rows.length} atualizadas.`);
+  return { total: missing.rows.length, updated };
+}
+
 async function ensureLargeRealCatalog() {
   if (!AUTO_EXPAND_CATALOG) return;
 
@@ -9714,9 +9784,10 @@ async function start() {
  
 
       setTimeout(() => {
-        ensureLargeRealCatalog()
+        backfillMissingBookCovers()
+          .then(() => ensureLargeRealCatalog())
           .then(() => syncBookCovers({ force: false }))
-          .catch(error => console.error("Falha ao ampliar catálogo ou sincronizar capas:", error));
+          .catch(error => console.error("Falha ao revisar catálogo ou sincronizar capas:", error));
       }, 3000);
 
     });
