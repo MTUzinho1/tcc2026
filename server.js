@@ -9370,6 +9370,24 @@ async function ensureDemoSchoolScale() {
     );
   }
 
+  // Mantém somente o conjunto principal de turmas de 2026 ativo no cenário demonstrativo.
+  await pool.query(
+    `UPDATE classes
+     SET active = FALSE, updated_at = NOW()
+     WHERE school_id = $1
+       AND school_year = 2026
+       AND NOT (
+         (name = ANY($2::text[]) AND shift = 'Manhã')
+         OR
+         (name = ANY($3::text[]) AND shift = 'Tarde')
+       )`,
+    [
+      schoolId,
+      ["6º A","6º B","7º A","7º B","8º A","8º B","9º A","9º B"],
+      ["1º A","1º B","2º A","2º B","3º A","3º B"]
+    ]
+  );
+
   const classesResult = await pool.query(
     `SELECT id
      FROM classes
