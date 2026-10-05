@@ -3440,6 +3440,22 @@ async function ensureInitialUsers() {
       password: "Biblioteca@2026",
       role: "librarian",
       jobTitle: "Bibliotecária"
+    },
+    {
+      systemKey: "bookshare-antonio-admin",
+      name: "Antônio — Administrador",
+      email: "antonio.admin@bookshare.com",
+      password: "AntonioAdmin@2026",
+      role: "admin",
+      jobTitle: "Administrador do sistema"
+    },
+    {
+      systemKey: "bookshare-antonio-librarian",
+      name: "Antônio — Bibliotecário",
+      email: "antonio.biblioteca@bookshare.com",
+      password: "AntonioBiblioteca@2026",
+      role: "librarian",
+      jobTitle: "Bibliotecário"
     }
   ];
 
@@ -3476,7 +3492,8 @@ async function ensureInitialUsers() {
            active,
            job_title,
            deleted_at,
-           system_key
+           system_key,
+           school_id
          )
          VALUES (
            $1,
@@ -3487,7 +3504,8 @@ async function ensureInitialUsers() {
            TRUE,
            $5,
            NULL,
-           $6
+           $6,
+           (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1)
          )`,
         [
           account.name,
@@ -3525,6 +3543,7 @@ async function ensureInitialUsers() {
            END,
            job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $6),
            system_key = $7,
+           school_id = COALESCE(school_id, (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1)),
            updated_at = NOW()
        WHERE id = $8`,
       [

@@ -52,6 +52,7 @@ const state = {
   route: "dashboard",
   bookView: localStorage.getItem("bookshare_book_view") || "grid",
   loanStatus: "active",
+  collectionLimits: { books: 60, students: 60 },
   caches: {
     students: [],
     books: [],
@@ -891,7 +892,10 @@ function renderStudents() {
   const students = getFilteredStudents();
   if (!students.length) return showEmpty(container, "Nenhum aluno encontrado", "Ajuste os filtros ou cadastre um novo aluno.", "♙");
 
-  container.innerHTML = students.slice(0, 120).map(student => {
+  const studentLimit = Number(state.collectionLimits?.students || 60);
+  const visibleStudents = students.slice(0, studentLimit);
+
+  container.innerHTML = visibleStudents.map(student => {
     const overdue = Number(student.overdue_loans || 0);
     return `
       <article class="student-card">
@@ -918,6 +922,20 @@ function renderStudents() {
   $$('[data-student-loan]', container).forEach(button => button.onclick = () => openLoanModal({ studentId: button.dataset.studentLoan }));
   $$('[data-student-detail]', container).forEach(button => button.onclick = () => openStudentDetails(button.dataset.studentDetail));
   $$('[data-student-edit]', container).forEach(button => button.onclick = () => openStudentEdit(button.dataset.studentEdit));
+
+  if (students.length > studentLimit) {
+    const remaining = students.length - studentLimit;
+    container.insertAdjacentHTML("beforeend", `
+      <div class="collection-more">
+        <p><strong>${number(visibleStudents.length)}</strong> de <strong>${number(students.length)}</strong> alunos exibidos</p>
+        <button class="button button--secondary" data-students-more type="button">Mostrar mais ${number(Math.min(60, remaining))}</button>
+      </div>`);
+    const button = $('[data-students-more]', container);
+    if (button) button.onclick = () => {
+      state.collectionLimits.students = studentLimit + 60;
+      renderStudents();
+    };
+  }
 }
 
 async function openStudentDetails(id) {
@@ -1089,20 +1107,28 @@ function filteredBooks() {
 function renderBooks() {
   const container = $("#books-container");
   if (!container) return;
+
   const books = filteredBooks();
+  const bookLimit = Number(state.collectionLimits?.books || 60);
+  const visibleBooks = books.slice(0, bookLimit);
+  const totalCopies = books.reduce((sum, book) => sum + Number(book.total_copies || 0), 0);
   const summary = $("#books-summary");
-  if (summary) summary.textContent = `${number(books.length)} título(s) exibido(s) · ${number(books.reduce((sum, book) => sum + Number(book.total_copies || 0), 0))} exemplares`;
+
+  if (summary) {
+    summary.textContent = `${number(books.length)} títulos encontrados · mostrando ${number(visibleBooks.length)} · ${number(totalCopies)} exemplares`;
+  }
+
   if (!books.length) return showEmpty(container, "Nenhum livro encontrado", "Tente outro termo ou cadastre um novo livro.", "▤");
 
   if (state.bookView === "table") {
     container.className = "table-card";
-    container.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Livro</th><th>Categoria</th><th>Local</th><th>Disponíveis</th><th></th></tr></thead><tbody>${books.slice(0, 180).map(book => `<tr><td><div class="table-book"><span class="table-book__cover">${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="">` : "▤"}</span><span><strong>${escapeHTML(book.title)}</strong><small>${escapeHTML(book.author)}</small></span></div></td><td>${escapeHTML(book.category_name || "—")}</td><td>${escapeHTML(book.shelf || "—")}</td><td>${number(book.available_copies)} / ${number(book.total_copies)}</td><td><button class="button button--small button--secondary" data-book-detail="${escapeHTML(book.id)}">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+    container.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Livro</th><th>Categoria</th><th>Local</th><th>Disponíveis</th><th></th></tr></thead><tbody>${visibleBooks.map(book => `<tr><td><div class="table-book"><span class="table-book__cover">${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="">` : "▤"}</span><span><strong>${escapeHTML(book.title)}</strong><small>${escapeHTML(book.author)}</small></span></div></td><td>${escapeHTML(book.category_name || "—")}</td><td>${escapeHTML(book.shelf || "—")}</td><td>${number(book.available_copies)} / ${number(book.total_copies)}</td><td><button class="button button--small button--secondary" data-book-detail="${escapeHTML(book.id)}">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   } else {
     container.className = "book-grid";
-    container.innerHTML = books.slice(0, 120).map(book => `
+    container.innerHTML = visibleBooks.map(book => `
       <article class="book-card">
         <div class="book-card__cover">
-          ${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="Capa de ${escapeHTML(book.title)}">` : `<div class="book-card__placeholder"><span>▤</span><small>Capa sendo sincronizada</small></div>`}
+          ${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="Capa de ${escapeHTML(book.title)}">` : `<div class="book-card__placeholder"><span>▤</span><small>Capa indisponível</small></div>`}
           <span class="book-card__status">${Number(book.available_copies) > 0 ? statusBadge(`${book.available_copies} disponível(is)`, "success") : statusBadge("Sem exemplar livre", "warning")}</span>
         </div>
         <div class="book-card__body">
@@ -1121,6 +1147,20 @@ function renderBooks() {
   $$('[data-book-detail]', container).forEach(button => button.onclick = () => openBookDetails(button.dataset.bookDetail));
   $$('[data-book-loan]', container).forEach(button => button.onclick = () => openLoanModal({ bookId: button.dataset.bookLoan }));
   $$('[data-book-edit]', container).forEach(button => button.onclick = () => openBookEdit(button.dataset.bookEdit));
+
+  if (books.length > bookLimit) {
+    const remaining = books.length - bookLimit;
+    container.insertAdjacentHTML("beforeend", `
+      <div class="collection-more">
+        <p><strong>${number(visibleBooks.length)}</strong> de <strong>${number(books.length)}</strong> títulos exibidos</p>
+        <button class="button button--secondary" data-books-more type="button">Mostrar mais ${number(Math.min(60, remaining))}</button>
+      </div>`);
+    const button = $('[data-books-more]', container);
+    if (button) button.onclick = () => {
+      state.collectionLimits.books = bookLimit + 60;
+      renderBooks();
+    };
+  }
 }
 
 async function openBookDetails(id) {
@@ -1965,12 +2005,21 @@ function bindModalButtons() {
 }
 
 function bindFilters() {
-  $("#student-search")?.addEventListener("input", debounce(renderStudents));
-  $("#student-class-filter")?.addEventListener("change", renderStudents);
-  $("#student-status-filter")?.addEventListener("change", renderStudents);
-  $("#book-search")?.addEventListener("input", debounce(renderBooks));
-  $("#book-category-filter")?.addEventListener("change", renderBooks);
-  $("#book-availability-filter")?.addEventListener("change", renderBooks);
+  const resetStudents = () => {
+    state.collectionLimits.students = 60;
+    renderStudents();
+  };
+  const resetBooks = () => {
+    state.collectionLimits.books = 60;
+    renderBooks();
+  };
+
+  $("#student-search")?.addEventListener("input", debounce(resetStudents));
+  $("#student-class-filter")?.addEventListener("change", resetStudents);
+  $("#student-status-filter")?.addEventListener("change", resetStudents);
+  $("#book-search")?.addEventListener("input", debounce(resetBooks));
+  $("#book-category-filter")?.addEventListener("change", resetBooks);
+  $("#book-availability-filter")?.addEventListener("change", resetBooks);
   $("#copy-search")?.addEventListener("input", debounce(() => loadCopies()));
   $("#copy-status-filter")?.addEventListener("change", () => loadCopies());
   $("#loan-search")?.addEventListener("input", debounce(renderLoans));
