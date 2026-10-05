@@ -3492,7 +3492,8 @@ async function ensureInitialUsers() {
            active,
            job_title,
            deleted_at,
-           system_key
+           system_key,
+           school_id
          )
          VALUES (
            $1,
@@ -3503,7 +3504,8 @@ async function ensureInitialUsers() {
            TRUE,
            $5,
            NULL,
-           $6
+           $6,
+           (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1)
          )`,
         [
           account.name,
@@ -3541,6 +3543,7 @@ async function ensureInitialUsers() {
            END,
            job_title = COALESCE(NULLIF(BTRIM(job_title), ''), $6),
            system_key = $7,
+           school_id = COALESCE(school_id, (SELECT id FROM schools WHERE code = 'PRINCIPAL' LIMIT 1)),
            updated_at = NOW()
        WHERE id = $8`,
       [
