@@ -1096,10 +1096,10 @@ function renderBooks() {
 
   if (state.bookView === "table") {
     container.className = "table-card";
-    container.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Livro</th><th>Categoria</th><th>Local</th><th>Disponíveis</th><th></th></tr></thead><tbody>${books.slice(0, 180).map(book => `<tr><td><div class="table-book"><span class="table-book__cover">${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="">` : "▤"}</span><span><strong>${escapeHTML(book.title)}</strong><small>${escapeHTML(book.author)}</small></span></div></td><td>${escapeHTML(book.category_name || "—")}</td><td>${escapeHTML(book.shelf || "—")}</td><td>${number(book.available_copies)} / ${number(book.total_copies)}</td><td><button class="button button--small button--secondary" data-book-detail="${escapeHTML(book.id)}">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
+    container.innerHTML = `<div class="table-scroll"><table class="data-table"><thead><tr><th>Livro</th><th>Categoria</th><th>Local</th><th>Disponíveis</th><th></th></tr></thead><tbody>${visibleBooks.map(book => `<tr><td><div class="table-book"><span class="table-book__cover">${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="">` : "▤"}</span><span><strong>${escapeHTML(book.title)}</strong><small>${escapeHTML(book.author)}</small></span></div></td><td>${escapeHTML(book.category_name || "—")}</td><td>${escapeHTML(book.shelf || "—")}</td><td>${number(book.available_copies)} / ${number(book.total_copies)}</td><td><button class="button button--small button--secondary" data-book-detail="${escapeHTML(book.id)}">Ver</button></td></tr>`).join("")}</tbody></table></div>`;
   } else {
     container.className = "book-grid";
-    container.innerHTML = books.slice(0, 120).map(book => `
+    container.innerHTML = visibleBooks.map(book => `
       <article class="book-card">
         <div class="book-card__cover">
           ${book.cover_url ? `<img loading="lazy" decoding="async" fetchpriority="low" src="${escapeHTML(mediaUrl(book.cover_url))}" alt="Capa de ${escapeHTML(book.title)}">` : `<div class="book-card__placeholder"><span>▤</span><small>Capa sendo sincronizada</small></div>`}
