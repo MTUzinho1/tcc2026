@@ -3440,6 +3440,22 @@ async function ensureInitialUsers() {
       password: "Biblioteca@2026",
       role: "librarian",
       jobTitle: "Bibliotecária"
+    },
+    {
+      systemKey: "bookshare-antonio-admin",
+      name: "Antônio — Administrador",
+      email: "antonio.admin@bookshare.com",
+      password: "AntonioAdmin@2026",
+      role: "admin",
+      jobTitle: "Administrador do sistema"
+    },
+    {
+      systemKey: "bookshare-antonio-librarian",
+      name: "Antônio — Bibliotecário",
+      email: "antonio.biblioteca@bookshare.com",
+      password: "AntonioBiblioteca@2026",
+      role: "librarian",
+      jobTitle: "Bibliotecário"
     }
   ];
 
