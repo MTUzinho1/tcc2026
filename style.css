@@ -17903,3 +17903,68 @@ textarea:focus-visible{
     display:grid!important;
   }
 }
+
+
+/* BOOKSHARE V18.1 — SIDEBAR NOTEBOOK */
+@media (min-width:861px){
+  .sidebar{
+    position:fixed!important;
+    inset:0 auto 0 0!important;
+    display:flex!important;
+    width:220px!important;
+    transform:none!important;
+    visibility:visible!important;
+    opacity:1!important;
+    z-index:1002!important;
+  }
+
+  .sidebar__close,
+  .sidebar-overlay,
+  .topbar__menu,
+  .topbar-brand{
+    display:none!important;
+  }
+
+  .main-content{
+    width:calc(100% - 220px)!important;
+    margin-left:220px!important;
+  }
+
+  .topbar{
+    left:220px!important;
+    width:auto!important;
+  }
+
+  .topbar__left{
+    display:flex!important;
+    min-width:150px!important;
+  }
+
+  .page-heading{
+    display:block!important;
+  }
+
+  .workspace{
+    width:100%!important;
+  }
+}
+
+@media (max-width:860px){
+  .main-content{
+    width:100%!important;
+    margin-left:0!important;
+  }
+
+  .topbar{
+    left:0!important;
+    width:100%!important;
+  }
+
+  .topbar__menu{
+    display:grid!important;
+  }
+
+  .topbar-brand{
+    display:flex!important;
+  }
+}
