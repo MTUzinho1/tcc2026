@@ -31,8 +31,14 @@ const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
 
-const JWT_SECRET_ENV = String(process.env.JWT_SECRET || "");
-const JWT_SECRET = JWT_SECRET_ENV || crypto.createHash("sha256").update(`${process.env.DATABASE_URL || "bookshare"}:BookShare-2026`).digest("hex");
+const JWT_SECRET = String(process.env.JWT_SECRET || "").trim();
+if (process.env.NODE_ENV === "production" && !JWT_SECRET) {
+  console.error("JWT_SECRET não configurado. O servidor não será iniciado em produção.");
+  process.exit(1);
+}
+if (!JWT_SECRET) {
+  console.warn("JWT_SECRET ausente: usando segredo temporário apenas em desenvolvimento.");
+}
 
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -9883,7 +9889,7 @@ async function start() {
 
     app.listen(PORT, () => {
 
-      console.log(`BookShare API 9.2 online na porta ${PORT}.`);
+      console.log(`BookShare API online na porta ${PORT}.`);
 
  
 
