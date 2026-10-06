@@ -1778,8 +1778,8 @@ async function loadReports() {
   const start = $("#report-start-date")?.value || "";
   const end = $("#report-end-date")?.value || "";
   const params = new URLSearchParams();
-  if (start) params.set("start_date", start);
-  if (end) params.set("end_date", end);
+  if (start) params.set("start", start);
+  if (end) params.set("end", end);
   const payload = await api(`/api/reports/summary${params.toString() ? `?${params}` : ""}`);
   const summary = payload.summary || payload.loans || {};
   if ($("#report-total-loans")) $("#report-total-loans").textContent = number(summary.total_loans ?? summary.total ?? 0);
