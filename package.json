@@ -1,8 +1,8 @@
 {
   "name": "bookshare-api",
-  "version": "12.0.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "BookShare — gestão de biblioteca escolar com Node.js, Render e Supabase PostgreSQL.",
+  "description": "BookShare — sistema final de gestão de biblioteca escolar com Node.js, Render e Supabase PostgreSQL.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
