@@ -15,3 +15,4 @@
 }
 @media(max-width:360px){.top-brand strong{font-size:16px}.top{padding:0 10px}}
 \n.sidebar-settings{display:block;background:transparent;color:#b8c7f1;font-size:12px;font-weight:700;text-align:left;margin:16px 0 0 15px;padding:7px 0}.sidebar-settings:hover{color:#fff;text-decoration:underline}\n
+.load-more{grid-column:1/-1;display:flex;justify-content:center;padding:24px 12px 8px}.load-more .button{min-width:210px}
