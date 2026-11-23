@@ -1,24 +1,43 @@
 "use strict";
 const $ = (q,root=document)=>root.querySelector(q);
 const $$ = (q,root=document)=>[...root.querySelectorAll(q)];
-const state={user:null,route:"home",loanFilter:"active",bookVisible:24,studentVisible:40,students:[],books:[],copies:[],loans:[],reservations:[],users:[]};
+const state={user:null,schoolId:null,schools:[],route:"home",loanFilter:"active",bookVisible:24,studentVisible:40,students:[],books:[],copies:[],loans:[],reservations:[],users:[]};
 const plain = x=>String(x??"");
 const esc = x=>plain(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = x=> x ? new Date(plain(x).length===10 ? x+"T12:00:00" : x).toLocaleDateString("pt-BR"):"—";
 const media = id=> id ? "/api/media/"+encodeURIComponent(id) : null;
+const cover = id=>"/api/books/"+encodeURIComponent(id)+"/cover";
+const portrait = id=>"/api/students/"+encodeURIComponent(id)+"/avatar";
 const legacyCover = raw=>{try{const url=new URL(raw);return url.protocol==="https:" && ["books.google.com","books.googleusercontent.com","covers.openlibrary.org","images-na.ssl-images-amazon.com","m.media-amazon.com"].includes(url.hostname)?url.href:null;}catch{return null;}};
 const toast=(message,bad=false)=>{
  const el=$("#toast");el.textContent=message;el.className="shown"+(bad?" danger":"");
  clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className="",4800);
 };
 async function api(path,options={}){
+ const {headers={},...rest}=options;
  let response;
- try{response=await fetch("/api"+path,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(options.headers||{})},...options});}
+ try{response=await fetch("/api"+path,{credentials:"same-origin",...rest,
+   headers:{"Content-Type":"application/json",...(state.schoolId?{"x-school-id":state.schoolId}:{}),...headers}});}
  catch{throw Error("Sem conexão com o servidor. Tente novamente.");}
  let data;try{data=await response.json();}catch{throw Error("O servidor respondeu em formato inesperado.");}
  if(response.status===401 && !path.includes("/auth/login")){showLogin();throw Error("Sessão expirada. Entre novamente.");}
  if(!response.ok)throw Error(data.error||"Não foi possível concluir a operação.");
  return data;
+}
+async function loadSchools(){
+ const data=await api("/schools");
+ state.schools=data.items||[];
+ const select=$("#school-selector"),name=$("#school-context-name");
+ select.hidden=state.user?.role!=="admin";name.hidden=state.user?.role==="admin";
+ if(state.user?.role==="admin"){
+   select.replaceChildren();
+   for(const school of state.schools){
+     const option=new Option(school.name+(school.active?"":" · desativada"),school.id);
+     select.add(option);
+   }
+   if(!state.schools.some(x=>x.id===state.schoolId))state.schoolId=state.schools.find(x=>x.active)?.id||state.schools[0]?.id||state.user.school_id;
+   select.value=state.schoolId;
+ }else name.textContent=state.user?.school_name||state.schools[0]?.name||"Escola";
 }
 function showLogin(){
  state.user=null;$("#landing").hidden=true;$("#workspace").hidden=true;$("#login").hidden=false;window.scrollTo(0,0);
@@ -27,7 +46,8 @@ function showLanding(){
  state.user=null;$("#workspace").hidden=true;$("#login").hidden=true;$("#landing").hidden=false;window.scrollTo(0,0);
 }
 function showApp(user){
- state.user=user;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
+ state.user=user;state.schoolId=user.school_id;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
+ loadSchools().catch(e=>toast(e.message,true));
  $("#hello-name").textContent=user.name.split(" ")[0];
  $("#user-label").textContent=user.name.split(" ")[0]+" · "+(user.role==="admin"?"Admin":"Biblioteca");
  $(".profile-avatar").textContent=user.name.slice(0,1).toUpperCase();
@@ -61,18 +81,21 @@ async function refresh(route=state.route){
    const d=await api("/users");state.users=d.items;renderUsers(d.items);
   }else if(route==="profile"){
    const d=await api("/me");state.user=d.user;renderProfile(d.user);
+  }else if(route==="schools"){
+   if(state.user?.role!=="admin")return navigate("home");
+   await loadSchools();renderSchools(state.schools);
   }
  }catch(err){toast(err.message,true);}
 }
 function navigate(route){
- if(!["home","books","students","loans","returns","reports","reservations","users","profile"].includes(route))route="home";
- if(route==="users"&&state.user?.role!=="admin")return;
+ if(!["home","books","students","loans","returns","reports","reservations","users","profile","schools"].includes(route))route="home";
+ if(["users","schools"].includes(route)&&state.user?.role!=="admin")return;
  state.route=route;
  $$(".page").forEach(el=>el.hidden=el.dataset.page!==route);
  $$(".nav-link").forEach(el=>el.classList.toggle("active",el.dataset.route===route));
  $("#sidebar").classList.remove("open");
  $("#menu-toggle").setAttribute("aria-expanded","false");
- document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe",profile:"Meu perfil"}[route]||"Biblioteca");
+ document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe",profile:"Meu perfil",schools:"Escolas"}[route]||"Biblioteca");
  refresh(route);
 }
 const message = text=>'<p class="empty">'+esc(text)+'</p>';
@@ -87,15 +110,15 @@ function renderDashboard(data){
 function renderBooks(items){
  const rows=items.slice(0,state.bookVisible);
  $("#books-grid").innerHTML=rows.map(x=>{
-   const url=x.cover_id?media(x.cover_id):legacyCover(x.cover_url);
-   const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
-   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button><button class="small-button secondary-edit" data-manage-copies="'+esc(x.id)+'">Exemplares</button></div></div></article>';
+   const image='<img src="'+cover(x.id)+'" loading="lazy" alt="Capa ou imagem ilustrativa de '+esc(x.title)+'">';
+   const remove=state.user?.role==="admin"?'<button class="small-button danger-text" data-delete-book="'+esc(x.id)+'">Excluir</button>':"";
+   return '<article class="book-card"><div class="book-cover">'+image+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button><button class="small-button secondary-edit" data-manage-copies="'+esc(x.id)+'">Exemplares</button>'+remove+'</div></div></article>';
  }).join("")||message("Ainda não há livros no acervo.");
  $("#books-count").textContent=items.length+" título"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
 }
 function avatar(item){
- return '<div class="avatar">'+(item.photo_id?'<img src="'+media(item.photo_id)+'" alt="">':esc(item.name.slice(0,1).toUpperCase()))+'</div>';
+ return '<div class="avatar"><img src="'+portrait(item.id)+'" loading="lazy" alt="'+(item.photo_id?"Foto autorizada de "+esc(item.name):"Avatar ilustrativo, não é foto do estudante")+'"></div>';
 }
 function table(head,rows){
  if(!rows.length)return message("Nenhum registro encontrado.");
@@ -103,7 +126,7 @@ function table(head,rows){
 }
 function renderStudents(items){
  const rows=items.slice(0,state.studentVisible);
- $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],rows.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button></td></tr>'));
+ $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],rows.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button>'+(state.user?.role==="admin"?'<button class="small-button danger-text" data-delete-student="'+esc(x.id)+'">Excluir</button>':"")+'</td></tr>'));
  $("#students-count").textContent=items.length+" aluno"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#students-table").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="students">Mostrar mais alunos ('+esc(items.length-rows.length)+')</button></div>');
 }
