@@ -29,7 +29,8 @@ function showLanding(){
 function showApp(user){
  state.user=user;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
  $("#hello-name").textContent=user.name.split(" ")[0];
- $("#user-label").textContent=user.name+" · "+(user.role==="admin"?"Administração":"Biblioteca");
+ $("#user-label").textContent=user.name.split(" ")[0]+" · "+(user.role==="admin"?"Admin":"Biblioteca");
+ $(".profile-avatar").textContent=user.name.slice(0,1).toUpperCase();
  $$(".admin-only").forEach(el=>el.hidden=user.role!=="admin");
  navigate("home");
 }
@@ -58,18 +59,20 @@ async function refresh(route=state.route){
   }else if(route==="users"){
    if(state.user?.role!=="admin")return navigate("home");
    const d=await api("/users");state.users=d.items;renderUsers(d.items);
+  }else if(route==="profile"){
+   const d=await api("/me");state.user=d.user;renderProfile(d.user);
   }
  }catch(err){toast(err.message,true);}
 }
 function navigate(route){
- if(!["home","books","students","loans","returns","reports","reservations","users"].includes(route))route="home";
+ if(!["home","books","students","loans","returns","reports","reservations","users","profile"].includes(route))route="home";
  if(route==="users"&&state.user?.role!=="admin")return;
  state.route=route;
  $$(".page").forEach(el=>el.hidden=el.dataset.page!==route);
  $$(".nav-link").forEach(el=>el.classList.toggle("active",el.dataset.route===route));
  $("#sidebar").classList.remove("open");
  $("#menu-toggle").setAttribute("aria-expanded","false");
- document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe"}[route]||"Biblioteca");
+ document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe",profile:"Meu perfil"}[route]||"Biblioteca");
  refresh(route);
 }
 const message = text=>'<p class="empty">'+esc(text)+'</p>';
@@ -132,7 +135,25 @@ function renderReservations(items){
  }));
 }
 function renderUsers(items){
- $("#users-table").innerHTML=table(["Nome","E-mail","Perfil","Status"],items.map(x=>'<tr><td><strong>'+esc(x.name)+'</strong></td><td>'+esc(x.email)+'</td><td>'+esc(x.role==="admin"?"Administrador":"Bibliotecária")+'</td><td>'+chip(x.active?"Ativo":"Desativado",x.active?"":"warn")+'</td></tr>'));
+ const q=($("#users-search")?.value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+ const filtered=items.filter(x=>(x.name+" "+x.email).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().includes(q));
+ $("#users-count").textContent=filtered.length+" pessoa"+(filtered.length===1?"":"s");
+ $("#users-summary").innerHTML=[
+  ["Pessoas cadastradas",items.length],
+  ["Com acesso ativo",items.filter(x=>x.active).length],
+  ["Administradores ativos",items.filter(x=>x.active&&x.role==="admin").length]
+ ].map(([name,n])=>'<div class="team-kpi"><span>'+esc(name)+'</span><strong>'+n+'</strong></div>').join("");
+ $("#users-table").innerHTML=table(["Funcionário","E-mail","Perfil","Acesso","Ações"],filtered.map(x=>
+  '<tr><td><strong>'+esc(x.name)+'</strong></td><td>'+esc(x.email)+'</td><td>'+esc(x.role==="admin"?"Administrador":"Bibliotecária")+'</td><td>'+chip(x.active?"Ativo":"Desativado",x.active?"":"warn")+'</td>'+
+  '<td><div class="actions"><button class="small-button" data-edit-user="'+esc(x.id)+'">Editar</button><button class="small-button" data-reset-user="'+esc(x.id)+'">Senha</button><button class="small-button '+(x.active?"danger-text":"")+'" data-toggle-user="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button></div></td></tr>'
+ ));
+}
+function renderProfile(user){
+ $("#profile-card").innerHTML='<span class="profile-large-avatar">'+esc(user.name.slice(0,1).toUpperCase())+'</span>'+
+  '<h2>'+esc(user.name)+'</h2><p class="muted">'+esc(user.role==="admin"?"Administrador":"Bibliotecária")+'</p>'+
+  '<div class="profile-data"><span>E-mail</span><strong>'+esc(user.email)+'</strong></div>'+
+  '<div class="profile-data"><span>Perfil de acesso</span><strong>'+esc(user.role==="admin"?"Administração":"Biblioteca")+'</strong></div>'+
+  '<button class="button primary" data-modal="profile">Editar meus dados</button>';
 }
 const field=(label,name,placeholder="",type="text",required=true,value="",wide=false)=>'<label class="'+(wide?"wide":"")+'">'+esc(label)+'<input type="'+esc(type)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'" value="'+esc(value)+'" '+(required?"required":"")+'></label>';
 const selectField=(label,name,items,required=true)=>'<label>'+esc(label)+'<select name="'+esc(name)+'" '+(required?"required":"")+'>'+items.map(([v,text])=>'<option value="'+esc(v)+'">'+esc(text)+'</option>').join("")+'</select></label>';
