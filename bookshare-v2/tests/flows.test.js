@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 test("deploy utiliza a V2 e não o código legado",()=>{
  const entry=readFileSync("../server.js","utf8");
  const landing=readFileSync("../index.html","utf8");
- assert.match(entry,/import\(\.\/"bookshare-v2\/src\/server\.js"\)/);
+ assert.ok(entry.includes('import("./bookshare-v2/src/server.js")'));
  assert.match(landing,/https:\/\/tcc2026\.onrender\.com\//);
  assert.doesNotMatch(landing,/landing-v14/);
 });
