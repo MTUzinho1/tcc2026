@@ -148,7 +148,7 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
   });
   await t.test("navegador desktop e mobile acessa páginas e formulários",async()=>{
     mkdirSync("artifacts",{recursive:true});
-    const browser=await chromium.launch({headless:true});
+    const browser=await chromium.launch({headless:true,...(process.env.BOOKSHARE_CHROME?{executablePath:process.env.BOOKSHARE_CHROME}:{})});
     t.after(async()=>await browser.close());
     const page=await browser.newPage({viewport:{width:1366,height:820},deviceScaleFactor:1});
     const errors=[];page.on("pageerror",err=>errors.push(err.message));
