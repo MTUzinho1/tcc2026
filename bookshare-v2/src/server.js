@@ -111,6 +111,25 @@ app.get("/api/dashboard",wrap(async(req,res)=>{
   ]);
   res.json({metrics:metrics[0],attention,recent});
 }));
+app.get("/api/reports",wrap(async(req,res)=>{
+ const [metrics,monthly,popular]=await Promise.all([
+   query(`SELECT
+     (SELECT count(*)::int FROM bookshare_v2.students WHERE active=true) students,
+     (SELECT count(*)::int FROM bookshare_v2.books) books,
+     (SELECT count(*)::int FROM bookshare_v2.copies WHERE status='available') available,
+     (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active') active_loans,
+     (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND due_date<CURRENT_DATE) overdue,
+     (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='returned') returned`),
+   query(`SELECT to_char(date_trunc('month',loaned_at),'MM/YYYY') month,count(*)::int total
+      FROM bookshare_v2.loans GROUP BY date_trunc('month',loaned_at)
+      ORDER BY date_trunc('month',loaned_at) DESC LIMIT 6`),
+   query(`SELECT b.title,b.author,count(l.id)::int total
+      FROM bookshare_v2.loans l JOIN bookshare_v2.copies c ON c.id=l.copy_id
+      JOIN bookshare_v2.books b ON b.id=c.book_id
+      GROUP BY b.id,b.title,b.author ORDER BY total DESC,b.title LIMIT 6`)
+ ]);
+ res.json({metrics:metrics[0],monthly,popular});
+}));
 app.get("/api/students",wrap(async(req,res)=>{
   const term=String(req.query.q||"").slice(0,100);
   const rows=await query("SELECT id,name,registration,class_name,contact,photo_id,active,created_at FROM bookshare_v2.students WHERE ($1='' OR name ILIKE '%'||$1||'%' OR registration ILIKE '%'||$1||'%') ORDER BY name LIMIT $2",[term,numberLimit(req.query.limit)]);
@@ -161,9 +180,12 @@ app.post("/api/copies",wrap(async(req,res)=>{
 app.get("/api/loans",wrap(async(req,res)=>{
  let status=String(req.query.status||"active");
  if(!["active","returned","all"].includes(status))status="active";
+ const q=String(req.query.q||"").trim().slice(0,100);
  const rows=await query(`SELECT l.id,l.student_id,l.copy_id,l.status,l.loaned_at,l.due_date,l.returned_at,l.return_condition,l.renewals,
  s.name student,c.code,b.title book FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id
- WHERE ($1='all' OR l.status=$1) ORDER BY CASE WHEN l.status='active' THEN 0 ELSE 1 END,l.due_date ASC LIMIT $2`,[status,numberLimit(req.query.limit,200)]);
+ WHERE ($1='all' OR l.status=$1)
+ AND ($3='' OR s.name ILIKE '%'||$3||'%' OR b.title ILIKE '%'||$3||'%' OR c.code ILIKE '%'||$3||'%')
+ ORDER BY CASE WHEN l.status='active' THEN 0 ELSE 1 END,l.due_date ASC LIMIT $2`,[status,numberLimit(req.query.limit,200),q]);
  res.json({items:rows});
 }));
 app.post("/api/loans",wrap(async(req,res)=>{
