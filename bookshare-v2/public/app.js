@@ -403,6 +403,32 @@ document.addEventListener("click",async e=>{
  if(el.dataset.addCopy)return openModal("copy",el.dataset.addCopy);
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
   if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
+ if(el.dataset.manageCopies)return openModal("copies",el.dataset.manageCopies);
+ if(el.dataset.editUser)return openModal("user",el.dataset.editUser);
+ if(el.dataset.resetUser)return openModal("reset-user",el.dataset.resetUser);
+ if(el.dataset.toggleUser){
+   const current=state.users.find(x=>x.id===el.dataset.toggleUser);
+   if(!current)return;
+   const action=current.active?"desativar":"ativar";
+   if(!confirm("Deseja "+action+" o acesso de "+current.name+"?"))return;
+   el.disabled=true;
+   try{
+     await api("/users/"+current.id,{method:"PATCH",body:JSON.stringify({name:current.name,email:current.email,role:current.role,active:!current.active})});
+     toast("Acesso atualizado.");await refresh("users");
+   }catch(error){toast(error.message,true)}finally{el.disabled=false;}
+   return;
+ }
+ if(el.dataset.copyAction){
+   const id=el.dataset.copyAction,book=el.dataset.book,status=el.dataset.status;
+   if(!confirm("Atualizar a situação deste exemplar?"))return;
+   el.disabled=true;
+   try{
+     await api("/copies/"+id+"/status",{method:"PATCH",body:JSON.stringify({status})});
+     dialog.close();await refresh("books");await openModal("copies",book);toast("Exemplar atualizado.");
+   }catch(error){toast(error.message,true)}finally{el.disabled=false;}
+   return;
+ }
+
  if(el.dataset.return)return openModal("return",el.dataset.return);
  if(el.dataset.renew)return openModal("renew",el.dataset.renew);
  if(el.dataset.pickup){const reservation=state.reservations.find(x=>x.id===el.dataset.pickup);if(reservation)await openModal("loan",{student_id:reservation.student_id,book_id:reservation.book_id});return;}
@@ -417,6 +443,7 @@ let timer;
 ["books","students","returns"].forEach(type=>{
  $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else if(type==="students")state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
 });
+$("#users-search").addEventListener("input",()=>renderUsers(state.users));
 $("#menu-toggle").onclick=()=>{
  const opened=$("#sidebar").classList.toggle("open");
  $("#menu-toggle").setAttribute("aria-expanded",String(opened));
