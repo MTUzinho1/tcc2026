@@ -36,11 +36,11 @@
 <main id="inicio">
 <section class="hero container">
   <div class="hero-copy">
-    <div class="eyebrow hero-kicker"><span class="green-dot"></span> BIBLIOTECA ORGANIZADA, COM CARINHO</div>
-    <h1>Mais tempo para <em>cuidar das histórias.</em></h1>
-    <p class="hero-description">Organize livros, alunos, empréstimos e devoluções de um jeito leve e fácil. Tudo o que a equipe da biblioteca precisa, em um só lugar.</p>
+    <div class="eyebrow hero-kicker"><span class="green-dot"></span> SEU DIA A DIA, MAIS ORGANIZADO</div>
+    <h1>Uma biblioteca mais leve começa <em>por aqui.</em></h1>
+    <p class="hero-description">Encontre um livro, atenda um aluno, registre uma devolução. Tudo fica simples quando o sistema acompanha o jeito de trabalhar da biblioteca.</p>
     <div class="hero-buttons"><button class="button primary large" data-action="open-login">Entrar na biblioteca <svg class="ico"><use href="#arrow"/></svg></button><a class="button outline large" href="#como-funciona">Entenda como funciona</a></div>
-    <div class="hero-foot"><svg class="ico"><use href="#check"/></svg> Simples de aprender. Gostoso de usar.</div>
+    <div class="hero-foot"><svg class="ico"><use href="#check"/></svg> Passos claros, sem formulários complicados.</div>
   </div>
   <div class="hero-visual" aria-label="Ilustração da interface simples do BookShare">
     <div class="hero-halo"></div><div class="hero-spark spark-a">✳</div><div class="hero-spark spark-b">✦</div>
@@ -48,7 +48,7 @@
       <div class="preview-header"><span class="preview-logo"><svg class="ico"><use href="#book"/></svg></span><div><b>Bom dia!</b><small>O que você precisa fazer hoje?</small></div><span class="preview-dots">•••</span></div>
       <div class="preview-action"><span><svg class="ico"><use href="#arrow"/></svg></span><div><b>Fazer empréstimo</b><small>Emprestar um livro para um aluno</small></div><i>›</i></div>
       <div class="preview-action"><span><svg class="ico"><use href="#return"/></svg></span><div><b>Registrar devolução</b><small>Receber um livro de volta</small></div><i>›</i></div>
-      <div class="preview-bottom"><span class="green-dot"></span> Tudo organizado, sem complicação.</div>
+      <div class="preview-bottom"><span class="green-dot"></span> Atendimento simples, do começo ao fim.</div>
     </div>
     <div class="book-illustration book-one"></div><div class="book-illustration book-two"></div>
   </div>
@@ -70,7 +70,7 @@
   <div class="auth-panel"><div class="auth-form"><button class="back-link" data-action="back-landing" type="button">← Voltar ao início</button><span class="eyebrow">ÁREA DA EQUIPE</span><h1>Que bom ter você aqui.</h1><p class="muted">Entre com seu e-mail e senha para começar.</p><form id="login-form"><label>E-mail<input name="email" type="email" autocomplete="username" placeholder="email@escola.com" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required></label><button type="submit" class="button primary full">Entrar no BookShare <svg class="ico"><use href="#arrow"/></svg></button></form><p id="auth-error" role="alert" class="error"></p><p class="auth-security"><svg class="ico"><use href="#shield"/></svg> Acesso reservado à equipe da biblioteca</p></div></div>
 </section>
 <section id="workspace" hidden>
-<header class="top"><div class="top-brand"><span class="brand-icon small"><svg class="ico"><use href="#book"/></svg></span><div><strong>BookShare</strong><small>Biblioteca escolar</small></div></div><div class="top-right"><span id="user-label"></span><button class="text-button" id="logout" type="button">Sair</button><button id="menu-toggle" class="mobile-menu" aria-label="Abrir menu" aria-expanded="false" type="button"><svg class="ico"><use href="#menu"/></svg></button></div></header>
+<header class="top"><div class="top-brand"><span class="brand-icon small"><svg class="ico"><use href="#book"/></svg></span><div><strong>BookShare</strong><small>Biblioteca escolar</small></div></div><div class="top-right"><button class="profile-shortcut" data-route="profile" type="button" title="Abrir meu perfil"><span class="profile-avatar" aria-hidden="true">●</span><span id="user-label"></span></button><button class="text-button" id="logout" type="button">Sair</button><button id="menu-toggle" class="mobile-menu" aria-label="Abrir menu" aria-expanded="false" type="button"><svg class="ico"><use href="#menu"/></svg></button></div></header>
 <div class="shell">
 <nav id="sidebar" class="sidebar" aria-label="Menu principal">
   <p class="nav-title">MENU PRINCIPAL</p>
@@ -81,7 +81,8 @@
   <button class="nav-link" data-route="students"><svg class="ico"><use href="#user"/></svg> Alunos</button>
   <button class="nav-link" data-route="reservations"><svg class="ico"><use href="#calendar"/></svg> Reservas</button>
   <button class="nav-link" data-route="reports"><svg class="ico"><use href="#chart"/></svg> Relatórios</button>
-  <p class="nav-title gap-top">CONFIGURAÇÕES</p>
+  <p class="nav-title gap-top">CONTA E EQUIPE</p>
+  <button class="nav-link" data-route="profile"><svg class="ico"><use href="#user"/></svg> Meu perfil</button>
   <button class="nav-link admin-only" data-route="users"><svg class="ico"><use href="#settings"/></svg> Equipe</button>
   <div class="sidebar-bottom"><div class="sidebar-tip"><svg class="ico"><use href="#check"/></svg><div><b>Um passo de cada vez.</b><small>Escolha uma tarefa para começar.</small></div></div><button class="sidebar-settings" data-modal="password">Alterar minha senha</button></div>
 </nav>
@@ -108,7 +109,17 @@
 <section class="page" data-page="students" hidden><div class="page-head"><div><span class="eyebrow">ALUNOS</span><h1>Cadastro de alunos</h1><p class="muted">Encontre um estudante ou faça um novo cadastro.</p></div><button class="button primary" data-modal="student"><svg class="ico"><use href="#plus"/></svg> Cadastrar aluno</button></div><div class="toolbar"><div class="search-wrap"><svg class="ico"><use href="#search"/></svg><input id="students-search" class="search" type="search" placeholder="Buscar nome ou matrícula..." aria-label="Buscar alunos"></div><span class="result-count" id="students-count"></span></div><div class="surface table-surface" id="students-table"></div></section>
 <section class="page" data-page="reservations" hidden><div class="page-head"><div><span class="eyebrow">LISTA DE ESPERA</span><h1>Reservas</h1><p class="muted">Acompanhe os livros solicitados pelos alunos.</p></div><button class="button primary" data-modal="reservation"><svg class="ico"><use href="#plus"/></svg> Nova reserva</button></div><div class="surface table-surface" id="reservations-table"></div></section>
 <section class="page" data-page="reports" hidden><div class="page-head"><div><span class="eyebrow">ACOMPANHAMENTO</span><h1>Relatórios</h1><p class="muted">Veja os números mais importantes da biblioteca.</p></div><button class="button secondary" data-action="print-reports">Imprimir resumo</button></div><div id="report-content"></div></section>
-<section class="page" data-page="users" hidden><div class="page-head"><div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Equipe da biblioteca</h1><p class="muted">Gerencie quem pode acessar o sistema.</p></div><button class="button primary" data-modal="user"><svg class="ico"><use href="#plus"/></svg> Adicionar pessoa</button></div><div class="surface table-surface" id="users-table"></div></section>
+<section class="page" data-page="users" hidden>
+ <div class="page-head"><div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Equipe da biblioteca</h1><p class="muted">Cadastre pessoas, controle acessos e atualize senhas com segurança.</p></div><button class="button primary" data-modal="user"><svg class="ico"><use href="#plus"/></svg> Novo funcionário</button></div>
+ <div id="users-summary" class="team-summary" aria-label="Resumo da equipe"></div>
+ <div class="toolbar"><div class="search-wrap"><svg class="ico"><use href="#search"/></svg><input class="search" id="users-search" type="search" aria-label="Buscar funcionário" placeholder="Buscar funcionário ou e-mail..."></div><span class="result-count" id="users-count"></span></div>
+ <div class="surface table-surface" id="users-table"></div>
+ </section>
+ <section class="page" data-page="profile" hidden>
+  <div class="page-head"><div><span class="eyebrow">MINHA CONTA</span><h1>Meu perfil</h1><p class="muted">Confira seus dados e mantenha sua senha protegida.</p></div></div>
+  <div class="profile-layout"><div class="surface profile-card" id="profile-card"></div>
+  <div class="surface profile-help"><span class="profile-help-icon"><svg class="ico"><use href="#shield"/></svg></span><h2>Sua conta, em segurança.</h2><p>Não compartilhe sua senha com outras pessoas. Se precisar, você pode alterá-la aqui mesmo.</p><button class="button secondary" data-modal="password">Alterar minha senha</button></div></div>
+ </section>
 </main>
 </div>
 </section>
