@@ -1,0 +1,32 @@
+# Serviço isolado da V2 no Render — não substitui tcc2026.
+# Configure DATABASE_URL e credenciais em Render > Environment antes do deploy.
+services:
+  - type: web
+    name: bookshare-v2-staging
+    runtime: node
+    plan: free
+    region: ohio
+    repo: https://github.com/MTUzinho1/tcc2026
+    branch: bookshare-v2-reconstrucao
+    rootDir: bookshare-v2
+    buildCommand: npm install --no-audit --no-fund && npm run check && npm test
+    startCommand: npm start
+    autoDeploy: false
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_SSL
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_ORIGIN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BOOTSTRAP_ADMIN_NAME
+        value: Administrador
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
