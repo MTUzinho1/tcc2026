@@ -1,7 +1,8 @@
-name: BookShare V2 checks
+name: BookShare V2 - revisão automatizada
 on:
   push:
-    branches: [bookshare-v2-reconstrucao]
+    branches:
+      - bookshare-v2-reconstrucao
   pull_request:
     paths:
       - "bookshare-v2/**"
@@ -9,14 +10,47 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: bookshare_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local_ci_database_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bookshare_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://postgres:local_ci_database_only@localhost:5432/bookshare_ci
+      DATABASE_SSL: "false"
     defaults:
       run:
         working-directory: bookshare-v2
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Obter código
+        uses: actions/checkout@v4
+      - name: Preparar Node
+        uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - run: npm install --no-audit --no-fund
-      - run: npm run check
-      - run: npm test
+          node-version: "22"
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+      - name: Instalar Chromium para UI
+        run: npx playwright install --with-deps chromium
+      - name: Verificar sintaxe
+        run: npm run check
+      - name: Testar regras, API, banco de dados e UI
+        run: npm test
+      - name: Guardar capturas para revisão do layout
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bookshare-v2-capturas
+          path: bookshare-v2/artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
