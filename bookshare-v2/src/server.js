@@ -8,7 +8,7 @@ import sharp from "sharp";
 import { Pool } from "pg";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
-import { DomainError, requiredText, optionalText, validUuid, createLoan, returnLoan, renewLoan } from "./flows.js";
+import { DomainError, requiredText, optionalText, validUuid, createLoan, returnLoan, renewLoan, transactReservation } from "./flows.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -28,14 +28,18 @@ function cookies(req) {
   const raw = String(req.headers.cookie || "");
   return Object.fromEntries(raw.split(";").map(x=>{let pos=x.indexOf("=");return pos < 0 ? ["",""] : [x.slice(0,pos).trim(),x.slice(pos+1).trim()]}));
 }
-function authenticate(req,res,next){
+async function authenticate(req,res,next){
   try {
     const token = cookies(req).bs_v2;
     if(!token) throw new DomainError("Faça login para continuar.",401);
-    const payload=jwt.verify(token,secret,{algorithms:["HS256"]});
-    req.identity=payload;
+    let claims;
+    try { claims=jwt.verify(token,secret,{algorithms:["HS256"]}); }
+    catch { throw new DomainError("Sessão inválida ou expirada. Entre novamente.",401); }
+    const users=await pool.query("SELECT id,name,role,active FROM users WHERE id=$1",[claims.sub]);
+    if(!users.rowCount || !users.rows[0].active) throw new DomainError("Conta desativada ou sessão encerrada.",401);
+    req.identity={sub:users.rows[0].id,name:users.rows[0].name,role:users.rows[0].role};
     next();
-  }catch(e){ next(new DomainError("Sessão inválida ou expirada. Entre novamente.",401)); }
+  }catch(e){ next(e); }
 }
 function admin(req,res,next){if(req.identity.role!=="admin")return next(new DomainError("Acesso restrito ao administrador.",403));next()}
 function guardOrigin(req,res,next){
@@ -177,10 +181,10 @@ app.post("/api/reservations",wrap(async(req,res)=>{
 }));
 app.post("/api/reservations/:id/status",wrap(async(req,res)=>{
  const b=payload(req),status=String(b.status||"");
- if(!["waiting","ready","completed","cancelled"].includes(status))throw new DomainError("Status inválido.");
- const rows=await query("UPDATE reservations SET status=$2,updated_at=now() WHERE id=$1 RETURNING *",[validUuid(req.params.id),status]);
- if(!rows.length)throw new DomainError("Reserva não encontrada.",404);
- res.json({item:rows[0]});
+ if(!["ready","completed","cancelled"].includes(status))throw new DomainError("Transição de reserva inválida.");
+ const id=validUuid(req.params.id);
+ const item=await transactReservation(pool,id,status);
+ res.json({item});
 }));
 app.get("/api/users",admin,wrap(async(req,res)=>{
  res.json({items:await query("SELECT id,name,email,role,active,created_at FROM users ORDER BY name LIMIT 100")});
