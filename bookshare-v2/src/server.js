@@ -15,7 +15,10 @@ const PORT = Number(process.env.PORT || 3000);
 const secret = String(process.env.JWT_SECRET || "");
 if (secret.length < 32) throw new Error("Configure JWT_SECRET com pelo menos 32 caracteres.");
 if (!process.env.DATABASE_URL) throw new Error("Configure DATABASE_URL de um banco NOVO da V2.");
-const pool = new Pool({connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_SSL === "true" ? {rejectUnauthorized:true}:false});
+const pool = new Pool({connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_SSL === "true" ? {
+  rejectUnauthorized:process.env.DATABASE_SSL_VERIFY === "true",
+  ...(process.env.DATABASE_SSL_CA ? {ca:Buffer.from(process.env.DATABASE_SSL_CA,"base64").toString("utf8")}: {})
+}:false});
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 app.disable("x-powered-by");
 app.use(helmet({contentSecurityPolicy:{directives:{"default-src":["'self'"],"script-src":["'self'"],"style-src":["'self'"],"img-src":["'self'","data:","https://books.google.com","https://books.googleusercontent.com","https://covers.openlibrary.org","https://images-na.ssl-images-amazon.com","https://m.media-amazon.com"],"connect-src":["'self'"],"object-src":["'none'"],"frame-ancestors":["'none'"]}}}));
