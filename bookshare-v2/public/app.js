@@ -89,7 +89,7 @@ function renderBooks(items){
  $("#books-grid").innerHTML=rows.map(x=>{
    const url=x.cover_id?media(x.cover_id):legacyCover(x.cover_url);
    const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
-   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button></div></div></article>';
+   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button><button class="small-button secondary-edit" data-manage-copies="'+esc(x.id)+'">Exemplares</button></div></div></article>';
  }).join("")||message("Ainda não há livros no acervo.");
  $("#books-count").textContent=items.length+" título"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
