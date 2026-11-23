@@ -70,7 +70,7 @@
   <div class="auth-panel"><div class="auth-form"><button class="back-link" data-action="back-landing" type="button">← Voltar ao início</button><span class="eyebrow">ÁREA DA EQUIPE</span><h1>Que bom ter você aqui.</h1><p class="muted">Entre com seu e-mail e senha para começar.</p><form id="login-form"><label>E-mail<input name="email" type="email" autocomplete="username" placeholder="email@escola.com" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required></label><button type="submit" class="button primary full">Entrar no BookShare <svg class="ico"><use href="#arrow"/></svg></button></form><p id="auth-error" role="alert" class="error"></p><p class="auth-security"><svg class="ico"><use href="#shield"/></svg> Acesso reservado à equipe da biblioteca</p></div></div>
 </section>
 <section id="workspace" hidden>
-<header class="top"><div class="top-brand"><span class="brand-icon small"><svg class="ico"><use href="#book"/></svg></span><div><strong>BookShare</strong><small>Biblioteca escolar</small></div></div><div class="top-right"><button class="profile-shortcut" data-route="profile" type="button" title="Abrir meu perfil"><span class="profile-avatar" aria-hidden="true">●</span><span id="user-label"></span></button><button class="text-button" id="logout" type="button">Sair</button><button id="menu-toggle" class="mobile-menu" aria-label="Abrir menu" aria-expanded="false" type="button"><svg class="ico"><use href="#menu"/></svg></button></div></header>
+<header class="top"><div class="top-brand"><span class="brand-icon small"><svg class="ico"><use href="#book"/></svg></span><div><strong>BookShare</strong><small>Biblioteca escolar</small></div></div><div class="top-right"><div class="school-context"><label for="school-selector">ESCOLA EM ATENDIMENTO</label><select id="school-selector" aria-label="Selecionar escola" hidden></select><span id="school-context-name"></span></div><button class="profile-shortcut" data-route="profile" type="button" title="Abrir meu perfil"><span class="profile-avatar" aria-hidden="true">●</span><span id="user-label"></span></button><button class="text-button" id="logout" type="button">Sair</button><button id="menu-toggle" class="mobile-menu" aria-label="Abrir menu" aria-expanded="false" type="button"><svg class="ico"><use href="#menu"/></svg></button></div></header>
 <div class="shell">
 <nav id="sidebar" class="sidebar" aria-label="Menu principal">
   <p class="nav-title">MENU PRINCIPAL</p>
@@ -84,6 +84,7 @@
   <p class="nav-title gap-top">CONTA E EQUIPE</p>
   <button class="nav-link" data-route="profile"><svg class="ico"><use href="#user"/></svg> Meu perfil</button>
   <button class="nav-link admin-only" data-route="users"><svg class="ico"><use href="#settings"/></svg> Equipe</button>
+  <button class="nav-link admin-only" data-route="schools"><svg class="ico"><use href="#home"/></svg> Escolas</button>
   <div class="sidebar-bottom"><div class="sidebar-tip"><svg class="ico"><use href="#check"/></svg><div><b>Um passo de cada vez.</b><small>Escolha uma tarefa para começar.</small></div></div><button class="sidebar-settings" data-modal="password">Alterar minha senha</button></div>
 </nav>
 <main class="main" id="app-main">
@@ -114,6 +115,12 @@
  <div id="users-summary" class="team-summary" aria-label="Resumo da equipe"></div>
  <div class="toolbar"><div class="search-wrap"><svg class="ico"><use href="#search"/></svg><input class="search" id="users-search" type="search" aria-label="Buscar funcionário" placeholder="Buscar funcionário ou e-mail..."></div><span class="result-count" id="users-count"></span></div>
  <div class="surface table-surface" id="users-table"></div>
+ </section>
+ <section class="page" data-page="schools" hidden>
+   <div class="page-head"><div><span class="eyebrow">ADMINISTRAÇÃO · UNIDADES ESCOLARES</span><h1>Escolas cadastradas</h1><p class="muted">Cada escola tem seus próprios alunos, livros e empréstimos.</p></div><button class="button primary" data-modal="school"><svg class="ico"><use href="#plus"/></svg> Cadastrar escola</button></div>
+   <div id="school-summary" class="team-summary"></div>
+   <div class="school-hint"><svg class="ico"><use href="#shield"/></svg><span>Registros com histórico não são apagados por acidente. Para uma escola em uso, você pode desativar o acesso.</span></div>
+   <div class="surface table-surface" id="schools-table"></div>
  </section>
  <section class="page" data-page="profile" hidden>
   <div class="page-head"><div><span class="eyebrow">MINHA CONTA</span><h1>Meu perfil</h1><p class="muted">Confira seus dados e mantenha sua senha protegida.</p></div></div>
