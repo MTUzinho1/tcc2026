@@ -130,35 +130,20 @@ app.post("/api/me/password",wrap(async(req,res)=>{
   res.json({ok:true,message:"Senha atualizada."});
 }));
 app.get("/api/dashboard",wrap(async(req,res)=>{
-  const [metrics,attention,recent]=await Promise.all([
-    query(`SELECT
-      (SELECT count(*)::int FROM bookshare_v2.students WHERE active=true) students,
-      (SELECT count(*)::int FROM bookshare_v2.books) books,
-      (SELECT count(*)::int FROM bookshare_v2.copies WHERE status='available') available,
-      (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active') active_loans,
-      (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND due_date<CURRENT_DATE) overdue,
-      (SELECT count(*)::int FROM bookshare_v2.reservations WHERE status='waiting') reservations`),
-    query(`SELECT l.id,s.name student,b.title book,l.due_date,c.code FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id WHERE l.status='active' AND l.due_date<=CURRENT_DATE+INTERVAL '3 days' ORDER BY l.due_date ASC LIMIT 8`),
-    query(`SELECT l.id,s.name student,b.title book,l.due_date,l.loaned_at,l.returned_at,l.status FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id ORDER BY l.loaned_at DESC LIMIT 8`)
-  ]);
-  res.json({metrics:metrics[0],attention,recent});
+ const sid=req.schoolId;
+ const [metrics,attention,recent]=await Promise.all([
+  query("SELECT (SELECT count(*)::int FROM bookshare_v2.students WHERE active=true AND school_id=$1) students,(SELECT count(*)::int FROM bookshare_v2.books WHERE school_id=$1) books,(SELECT count(*)::int FROM bookshare_v2.copies WHERE status='available' AND school_id=$1) available,(SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND school_id=$1) active_loans,(SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND due_date<CURRENT_DATE AND school_id=$1) overdue,(SELECT count(*)::int FROM bookshare_v2.reservations WHERE status='waiting' AND school_id=$1) reservations",[sid]),
+  query("SELECT l.id,s.name student,b.title book,l.due_date,c.code FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id WHERE l.school_id=$1 AND l.status='active' AND l.due_date<=CURRENT_DATE+INTERVAL '3 days' ORDER BY l.due_date ASC LIMIT 8",[sid]),
+  query("SELECT l.id,s.name student,b.title book,l.due_date,l.loaned_at,l.returned_at,l.status FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id WHERE l.school_id=$1 ORDER BY l.loaned_at DESC LIMIT 8",[sid])
+ ]);
+ res.json({metrics:metrics[0],attention,recent});
 }));
 app.get("/api/reports",wrap(async(req,res)=>{
+ const sid=req.schoolId;
  const [metrics,monthly,popular]=await Promise.all([
-   query(`SELECT
-     (SELECT count(*)::int FROM bookshare_v2.students WHERE active=true) students,
-     (SELECT count(*)::int FROM bookshare_v2.books) books,
-     (SELECT count(*)::int FROM bookshare_v2.copies WHERE status='available') available,
-     (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active') active_loans,
-     (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND due_date<CURRENT_DATE) overdue,
-     (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='returned') returned`),
-   query(`SELECT to_char(date_trunc('month',loaned_at),'MM/YYYY') AS "month",count(*)::int AS total
-      FROM bookshare_v2.loans GROUP BY date_trunc('month',loaned_at)
-      ORDER BY date_trunc('month',loaned_at) DESC LIMIT 6`),
-   query(`SELECT b.title,b.author,count(l.id)::int total
-      FROM bookshare_v2.loans l JOIN bookshare_v2.copies c ON c.id=l.copy_id
-      JOIN bookshare_v2.books b ON b.id=c.book_id
-      GROUP BY b.id,b.title,b.author ORDER BY total DESC,b.title LIMIT 6`)
+  query("SELECT (SELECT count(*)::int FROM bookshare_v2.students WHERE active=true AND school_id=$1) students,(SELECT count(*)::int FROM bookshare_v2.books WHERE school_id=$1) books,(SELECT count(*)::int FROM bookshare_v2.copies WHERE status='available' AND school_id=$1) available,(SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND school_id=$1) active_loans,(SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND due_date<CURRENT_DATE AND school_id=$1) overdue,(SELECT count(*)::int FROM bookshare_v2.loans WHERE status='returned' AND school_id=$1) returned",[sid]),
+  query("SELECT to_char(date_trunc('month',loaned_at),'MM/YYYY') AS month,count(*)::int total FROM bookshare_v2.loans WHERE school_id=$1 GROUP BY date_trunc('month',loaned_at) ORDER BY date_trunc('month',loaned_at) DESC LIMIT 6",[sid]),
+  query("SELECT b.title,b.author,count(l.id)::int total FROM bookshare_v2.loans l JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id WHERE l.school_id=$1 GROUP BY b.id,b.title,b.author ORDER BY total DESC,b.title LIMIT 6",[sid])
  ]);
  res.json({metrics:metrics[0],monthly,popular});
 }));
