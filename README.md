@@ -1,86 +1,64 @@
-BookShare
-Sistema web de gerenciamento de biblioteca escolar, desenvolvido para facilitar o controle de livros, exemplares, alunos, turmas, empréstimos, devoluções, reservas, pendências e usuários.
-O sistema possui dois perfis de acesso:
-Administrador: gerencia contas, escolas, funcionários, livros, alunos e configurações.
-Bibliotecária: realiza atendimentos, empréstimos, devoluções, reservas, avisos e acompanha atrasos.
----
-Tecnologias utilizadas
-Frontend
-HTML5
-CSS3
-JavaScript
-Interface responsiva para computador, tablet e celular
-Backend
-Node.js
-Express
-PostgreSQL
-JWT para autenticação
-bcrypt para proteção das senhas
-API REST
-Serviços
-GitHub: armazenamento do projeto e publicação do frontend
-Render: hospedagem do backend
-Supabase: banco de dados PostgreSQL
----
-Funcionalidades
-Administrador
-Login seguro
-Cadastro de bibliotecárias e administradores
-Edição de nome, e-mail, telefone, cargo, escola e perfil
-Alteração e redefinição de senha
-Bloqueio e reativação de contas
-Exclusão de usuários
-Cadastro e gerenciamento de escolas
-Cadastro e edição de livros
-Gerenciamento de exemplares
-Cadastro de turmas
-Cadastro e gerenciamento de alunos
-Visualização de métricas administrativas
-Configuração dos prazos e regras da biblioteca
-Histórico de ações do sistema
-Bibliotecária
-Login seguro
-Atendimento pelo perfil do aluno
-Cadastro de empréstimos
-Registro de devoluções
-Renovação de empréstimos
-Cadastro de reservas
-Controle de pendências
-Geração de mensagens de cobrança
-Registro de contatos realizados
-Consulta de livros disponíveis
-Consulta do histórico de alunos
-Visualização de notificações
-Notificações
-A bibliotecária recebe avisos sobre:
-empréstimos atrasados;
-devoluções que vencem no dia;
-devoluções próximas do vencimento;
-reservas disponíveis para retirada.
-As notificações são atualizadas automaticamente enquanto o sistema está aberto.
+# BookShare — Biblioteca escolar
 
-Objetivo do projeto
-O BookShare foi desenvolvido como projeto de conclusão do curso técnico em Desenvolvimento de Sistemas.
-O objetivo é transformar o controle da biblioteca escolar em um processo mais organizado, seguro e eficiente, substituindo registros manuais por um sistema online com dados persistentes e acesso controlado.
----
-Equipe
-Antonio Gabriel
-Kauê Ribeiro Cardoso
-Matheus Rafael Kosloski
-Nicolas Rafael Cortes Moises
----
-Situação do projeto
-O sistema possui:
-frontend responsivo;
-backend online;
-banco de dados PostgreSQL;
-autenticação;
-gerenciamento administrativo;
-fluxo de empréstimos e devoluções;
-reservas;
-notificações;
-persistência de dados;
-integração entre frontend, backend e banco.
----
-Licença
-Projeto acadêmico desenvolvido para fins educacionais.
+**Uma biblioteca organizada, sem complicação.**  
+Aplicação web desenvolvida como trabalho de conclusão de curso, com foco em uma experiência acolhedora e fácil para profissionais de bibliotecas escolares.
+
+**Acesse:** https://tcc2026.onrender.com
+
+## O que o sistema faz
+
+O BookShare tem uma landing page pública e uma área privada acessível aos perfis **administrador** e **bibliotecária**. O fluxo do dia a dia foi organizado em ações grandes: **Fazer empréstimo**, **Registrar devolução**, **Cadastrar livro** e **Cadastrar aluno**.
+
+- **Início:** quatro ações rápidas, resumo do acervo e devoluções próximas.
+- **Empréstimos:** localizar aluno e exemplar com busca, escolher vencimento, confirmar retirada; renovar empréstimos ativos.
+- **Devoluções:** procurar pelo aluno, título ou código e registrar condição do exemplar.
+- **Livros:** consultar capas, buscar por título/autor/ISBN, cadastrar e editar obras, adicionar exemplares.
+- **Alunos:** pesquisar, cadastrar, editar, atualizar situação e anexar fotos autorizadas.
+- **Reservas:** solicitar, disponibilizar, retirar ou cancelar.
+- **Relatórios:** indicadores, empréstimos por mês, livros mais emprestados e impressão.
+- **Equipe (administrador):** listar e cadastrar funcionários com os perfis permitidos.
+- **Conta:** login, logout e alteração de senha.
+
+## Tecnologias
+
+- Frontend: HTML5, CSS3 e JavaScript.
+- Backend: Node.js, Express, JWT com cookie HTTP-only e bcrypt.
+- Banco: PostgreSQL/Supabase, schema privado `bookshare_v2`.
+- Infraestrutura: Render para a aplicação; GitHub Pages encaminha para o serviço.
+- QA: Node.js Test Runner, PostgreSQL de integração e Playwright (Chromium desktop e mobile).
+
+## Estrutura
+
+```
+index.html                      Redireciona para o sistema hospedado
+server.js                       Entrada para a API V2
+bookshare-v2/
+  public/index.html             Landing, login e interface da biblioteca
+  public/styles.css             Sistema visual verde e responsivo
+  public/app.js                 Eventos, busca e comunicação com API
+  src/server.js                 Rotas e autenticação
+  src/flows.js                  Regras de empréstimo, devolução e reservas
+  schema.sql                    Tabelas do schema privado
+  tests/                        Testes de regras, API e navegação real
+```
+
+## Execução e testes
+
+Para desenvolvimento, use um **PostgreSQL de testes**, nunca o banco ativo da escola. Consulte `bookshare-v2/README.md` para as variáveis necessárias e instalação.
+
+```bash
+cd bookshare-v2
+npm install
+npm run check
+npm test
+npm start
+```
+
+O workflow **BookShare V2 - revisão automatizada** executa cenários reais com PostgreSQL e Chromium.
+
+## Responsabilidade com os dados
+
+- Não publique senhas, segredos de banco nem fotografias de alunos sem autorização.
+- O backend valida permissões e operações de escrita.
+- A versão antiga foi preservada na branch `bookshare-v1-backup-antes-da-v2`.
+- As fotos dos alunos precisam ter uso autorizado. Capas de terceiros devem respeitar as respectivas licenças.
