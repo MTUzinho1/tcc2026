@@ -208,6 +208,11 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('#modal-form button[type=submit]').click();
     await page.locator("#dialog").waitFor({state:"hidden"});
     await page.screenshot({path:"artifacts/05-livros-desktop.png",fullPage:true});
+    await page.locator(".book-card [data-manage-copies]").first().click();
+    await page.locator(".copy-line").first().waitFor();
+    await page.screenshot({path:"artifacts/05a-gerenciar-exemplares.png",fullPage:true});
+    await page.locator("#dialog [data-close]").click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
     await page.locator('[data-route="loans"]').click();
     await page.locator('[data-page="loans"] [data-modal="loan"]').click();
     await page.locator('#picker-student').fill("Estudante Alpha QA");
@@ -234,6 +239,15 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('#sidebar [data-route="users"]').click();
     await page.locator('#users-table tbody tr').first().waitFor();
     await page.screenshot({path:"artifacts/08a-equipe-admin-desktop.png",fullPage:true});
+    await page.locator('#users-table [data-edit-user]').last().click();
+    await page.locator('#modal-form [name=name]').fill("Atendente de testes");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
+    await page.getByText("Atendente de testes",{exact:true}).waitFor();
+    await page.locator('#users-table [data-reset-user]').last().click();
+    await page.locator('#modal-form [name=password]').fill("SenhaUI_Forte_2026!");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
     await page.locator('#sidebar [data-route="profile"]').click();
     await page.locator('#profile-card .button').click();
     await page.locator('#modal-form [name=name]').fill("Administrador de testes");
@@ -258,6 +272,18 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await mobile.locator('[data-page="books"]:not([hidden])').waitFor();
     await mobile.locator(".book-card").first().waitFor();
     await mobile.screenshot({path:"artifacts/12-livros-mobile.png",fullPage:true});
+    await mobile.locator("#menu-toggle").click();
+    await mobile.locator('#sidebar [data-route="loans"]').click();
+    await mobile.locator('[data-page="loans"] [data-modal="loan"]').click();
+    await mobile.locator("#dialog[open]").waitFor();
+    await mobile.screenshot({path:"artifacts/13-emprestimo-mobile.png",fullPage:true});
+    const modalFits=await mobile.locator("#dialog").evaluate(el=>{
+      const rect=el.getBoundingClientRect();
+      return rect.left>=0 && rect.right<=window.innerWidth+1 &&
+        rect.top>=0 && rect.bottom<=window.innerHeight+1;
+    });
+    assert.ok(modalFits,"O formulário de empréstimo não cabe na tela do celular");
+    await mobile.locator("#dialog-close").click();
     const noHeaderCollision=await mobile.evaluate(()=>{
       const brand=document.querySelector(".top-brand").getBoundingClientRect();
       const logout=document.querySelector(".top-right .text-button").getBoundingClientRect();
