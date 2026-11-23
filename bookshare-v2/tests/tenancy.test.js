@@ -37,9 +37,9 @@ test("escolas independentes e exclusões com proteção", {timeout:60000},async 
  assert.equal(student.status,201);
  const book=await send("POST","/books",cookie,school,{title:"Livro Exemplo",author:"Autores de Teste"});
  assert.equal(book.status,201);
- const avatar=await fetch(base+"/api/students/"+student.body.item.id+"/avatar",{headers:{Cookie:cookie,"x-school-id":school}});
+ const avatar=await fetch(base+"/api/students/"+student.body.item.id+"/avatar?school_id="+school,{headers:{Cookie:cookie}});
  assert.equal(avatar.status,200);assert.match(avatar.headers.get("content-type"),/^image\//);
- const cover=await fetch(base+"/api/books/"+book.body.item.id+"/cover",{headers:{Cookie:cookie,"x-school-id":school}});
+ const cover=await fetch(base+"/api/books/"+book.body.item.id+"/cover?school_id="+school,{headers:{Cookie:cookie}});
  assert.equal(cover.status,200);assert.match(cover.headers.get("content-type"),/^image\//);
  assert.equal((await send("DELETE","/schools/"+school,cookie)).status,409);
  assert.equal((await send("DELETE","/books/"+book.body.item.id,cookie,school)).status,200);
