@@ -13,3 +13,12 @@ test("condição inválida de devolução é recusada antes de acessar DB", asyn
 test("IDs inválidos nunca iniciam transação", async () => {
   await assert.rejects(() => createLoan(null, { studentId:"invalid", copyId:"invalid", dueDate:"2027-01-01", userId:"invalid" }), DomainError);
 });
+
+import { readFileSync } from "node:fs";
+test("deploy utiliza a V2 e não o código legado",()=>{
+ const entry=readFileSync("../server.js","utf8");
+ const landing=readFileSync("../index.html","utf8");
+ assert.match(entry,/import\(\.\/"bookshare-v2\/src\/server\.js"\)/);
+ assert.match(landing,/https:\/\/tcc2026\.onrender\.com\//);
+ assert.doesNotMatch(landing,/landing-v14/);
+});
