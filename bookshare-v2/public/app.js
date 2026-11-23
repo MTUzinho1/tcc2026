@@ -86,7 +86,7 @@ function renderBooks(items){
  $("#books-grid").innerHTML=rows.map(x=>{
    const url=x.cover_id?media(x.cover_id):legacyCover(x.cover_url);
    const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
-   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button></div></div></article>';
+   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button></div></div></article>';
  }).join("")||message("Ainda não há livros no acervo.");
  $("#books-count").textContent=items.length+" título"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
@@ -164,18 +164,29 @@ async function uploadImage(form){
 async function openModal(type,extra){
  if(type==="student"){
    const old=state.students.find(x=>x.id===extra);
-   const fields=field("Nome completo","name","Nome do aluno","text",true,old?.name||"",true)+field("Matrícula","registration","Número de matrícula","text",true,old?.registration||"")+field("Turma","class_name","Ex.: 3º B","text",true,old?.class_name||"")+field("Contato","contact","Opcional","text",false,old?.contact||"",true)+imgField();
+   const fields=field("Nome completo","name","Nome do aluno","text",true,old?.name||"",true)
+     +field("Matrícula","registration","Número de matrícula","text",true,old?.registration||"")
+     +field("Turma","class_name","Ex.: 3º B","text",true,old?.class_name||"")
+     +field("Contato","contact","Opcional","text",false,old?.contact||"",true)
+     +(old?selectField("Situação","active",[["true","Ativo"],["false","Inativo"]]):"")
+     +imgField();
    openDialog(old?"Editar aluno":"Cadastrar aluno","Informações essenciais do estudante.",fields,async(b,form)=>{
      const photo_id=await uploadImage(form)||old?.photo_id||null;
-     await api(old?"/students/"+old.id:"/students",{method:old?"PATCH":"POST",body:JSON.stringify({...b,photo_id,active:old?.active!==false})});
-   });
+     await api(old?"/students/"+old.id:"/students",{method:old?"PATCH":"POST",body:JSON.stringify({...b,photo_id,active:b.active!=="false"})});
+   },old?"Salvar alterações":"Cadastrar aluno");
+   if(old)$("#modal-form [name=active]").value=old.active?"true":"false";
  }
  else if(type==="book"){
-   const fields=field("Título","title","Nome do livro","text",true,"",true)+field("Autor","author","Nome do autor","text",true,"",true)+field("ISBN","isbn","Opcional","text",false)+field("Categoria","category","Ex.: Literatura","text",false)+imgField();
-   openDialog("Adicionar livro","Cadastre a obra. Os exemplares são adicionados separadamente.",fields,async(b,form)=>{
-     const cover_id=await uploadImage(form);
-     await api("/books",{method:"POST",body:JSON.stringify({...b,cover_id})});
-   });
+   const old=state.books.find(x=>x.id===extra);
+   const fields=field("Título","title","Nome do livro","text",true,old?.title||"",true)
+     +field("Autor","author","Nome do autor","text",true,old?.author||"",true)
+     +field("ISBN","isbn","Opcional","text",false,old?.isbn||"")
+     +field("Categoria","category","Ex.: Literatura","text",false,old?.category||"")
+     +imgField();
+   openDialog(old?"Editar livro":"Cadastrar livro",old?"Atualize os dados e mantenha os exemplares registrados.":"Cadastre a obra e, em seguida, adicione exemplares.",fields,async(b,form)=>{
+     const cover_id=await uploadImage(form)||old?.cover_id||null;
+     await api(old?"/books/"+old.id:"/books",{method:old?"PATCH":"POST",body:JSON.stringify({...b,cover_id})});
+   },old?"Salvar alterações":"Cadastrar livro");
  }
  else if(type==="copy"){
    const books=await getItems("/books?limit=1000");
@@ -261,6 +272,7 @@ document.addEventListener("click",async e=>{
  if(el.dataset.close){dialog.close();return;}
  if(el.dataset.addCopy)return openModal("copy",el.dataset.addCopy);
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
+  if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
  if(el.dataset.return)return openModal("return",el.dataset.return);
  if(el.dataset.renew)return openModal("renew",el.dataset.renew);
  if(el.dataset.pickup){const reservation=state.reservations.find(x=>x.id===el.dataset.pickup);if(reservation)await openModal("loan",{student_id:reservation.student_id,book_id:reservation.book_id});return;}
