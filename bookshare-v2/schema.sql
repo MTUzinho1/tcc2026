@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS books (
   isbn VARCHAR(20) UNIQUE,
   category VARCHAR(80) NOT NULL DEFAULT 'Geral',
   cover_id UUID REFERENCES media_assets(id) ON DELETE SET NULL,
+  cover_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS copies (
