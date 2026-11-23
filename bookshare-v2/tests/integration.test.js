@@ -145,6 +145,11 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     assert.ok(dash.body.metrics.students>=2);
     assert.ok(dash.body.metrics.books>=1);
     assert.ok(dash.body.metrics.available>=1);
+    const report=await request("GET","/reports",undefined,cookie);
+    ok(report,200);
+    assert.ok(report.body.metrics.students>=2);
+    assert.ok(Array.isArray(report.body.popular));
+    assert.ok(Array.isArray(report.body.monthly));
   });
   await t.test("landing verde, atendimento e uso real em desktop e celular",async()=>{
     mkdirSync("artifacts",{recursive:true});
@@ -176,6 +181,10 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.screenshot({path:"artifacts/04-alunos-desktop.png",fullPage:true});
     await page.locator('[data-route="books"]').click();
     await page.locator(".book-card").first().waitFor();
+    await page.locator(".book-card [data-edit-book]").first().click();
+    await page.locator('#modal-form [name=category]').fill("Literatura QA");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator("#dialog:not([open])").waitFor();
     await page.screenshot({path:"artifacts/05-livros-desktop.png",fullPage:true});
     await page.locator('[data-route="loans"]').click();
     await page.locator('[data-page="loans"] [data-modal="loan"]').click();
