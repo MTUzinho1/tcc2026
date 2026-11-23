@@ -9,6 +9,7 @@ import { Pool } from "pg";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { DomainError, requiredText, optionalText, validUuid, createLoan, returnLoan, renewLoan, transactReservation } from "./flows.js";
+import { registerSchools } from "./schools.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -44,9 +45,9 @@ async function authenticate(req,res,next){
     let claims;
     try { claims=jwt.verify(token,secret,{algorithms:["HS256"]}); }
     catch { throw new DomainError("Sessão inválida ou expirada. Entre novamente.",401); }
-    const users=await pool.query("SELECT id,name,role,active FROM bookshare_v2.users WHERE id=$1",[claims.sub]);
+    const users=await pool.query("SELECT id,name,role,active,school_id FROM bookshare_v2.users WHERE id=$1",[claims.sub]);
     if(!users.rowCount || !users.rows[0].active) throw new DomainError("Conta desativada ou sessão encerrada.",401);
-    req.identity={sub:users.rows[0].id,name:users.rows[0].name,role:users.rows[0].role};
+    req.identity={sub:users.rows[0].id,name:users.rows[0].name,role:users.rows[0].role,school_id:users.rows[0].school_id};
     next();
   }catch(e){ next(e); }
 }
@@ -79,26 +80,41 @@ app.get("/api/health",wrap(async(req,res)=>{await pool.query("SELECT 1");res.jso
 app.post("/api/auth/login",wrap(async(req,res)=>{
   const b=payload(req);
   const email=String(b.email||"").trim().toLowerCase(), password=String(b.password||"");
-  const result=await query("SELECT id,name,email,role,password_hash FROM bookshare_v2.users WHERE email=$1 AND active=true",[email]);
+  const result=await query("SELECT u.id,u.name,u.email,u.role,u.school_id,u.password_hash,s.name AS school_name,s.active AS school_active FROM bookshare_v2.users u JOIN bookshare_v2.schools s ON s.id=u.school_id WHERE u.email=$1 AND u.active=true",[email]);
   const user=result[0];
-  if(!user || !(await bcrypt.compare(password,user.password_hash)))throw new DomainError("E-mail ou senha inválidos.",401);
+  if(!user || (user.role!=="admin" && !user.school_active) || !(await bcrypt.compare(password,user.password_hash)))throw new DomainError("E-mail ou senha inválidos.",401);
   const token=jwt.sign({sub:user.id,name:user.name,role:user.role},secret,{expiresIn:"8h",algorithm:"HS256"});
   res.cookie("bs_v2",token,{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",path:"/",maxAge:8*60*60*1000});
-  res.json({user:{id:user.id,name:user.name,role:user.role,email:user.email}});
+  res.json({user:{id:user.id,name:user.name,role:user.role,email:user.email,school_id:user.school_id,school_name:user.school_name}});
 }));
 app.post("/api/auth/logout",(req,res)=>{res.clearCookie("bs_v2",{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",path:"/"});res.json({ok:true})});
 app.get("/api/me",authenticate,wrap(async(req,res)=>{
-  const users=await query("SELECT id,name,email,role FROM bookshare_v2.users WHERE id=$1 AND active=true",[req.identity.sub]);
+  const users=await query("SELECT u.id,u.name,u.email,u.role,u.school_id,s.name AS school_name FROM bookshare_v2.users u JOIN bookshare_v2.schools s ON s.id=u.school_id WHERE u.id=$1 AND u.active=true",[req.identity.sub]);
   if(!users.length)throw new DomainError("Conta desativada.",401);
   res.json({user:users[0]});
 }));
 app.use("/api",authenticate);
+app.use("/api",async(req,res,next)=>{
+ try{
+   const requested=req.get("x-school-id");
+   if(requested && req.identity.role!=="admin" && requested!==req.identity.school_id)
+     throw new DomainError("Você não pode acessar outra escola.",403);
+   const schoolId=req.identity.role==="admin"&&requested?validUuid(requested):req.identity.school_id;
+   if(!schoolId)throw new DomainError("Conta sem escola vinculada.",403);
+   const rows=await query("SELECT id,name,active FROM bookshare_v2.schools WHERE id=$1",[schoolId]);
+   if(!rows.length)throw new DomainError("Escola não encontrada.",404);
+   if(!rows[0].active && req.identity.role!=="admin")throw new DomainError("Escola desativada.",403);
+   req.schoolId=schoolId;req.school=rows[0];
+   next();
+ }catch(error){next(error);}
+});
+registerSchools(app,{pool,query});
 app.patch("/api/me",wrap(async(req,res)=>{
  const b=payload(req),id=req.identity.sub;
  const name=requiredText(b.name,"Nome",120);
  const email=requiredText(b.email,"E-mail",180).toLowerCase();
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new DomainError("Informe um e-mail válido.");
- const rows=await query("UPDATE bookshare_v2.users SET name=$2,email=$3 WHERE id=$1 AND active=true RETURNING id,name,email,role,active",[id,name,email]);
+ const rows=await query("UPDATE bookshare_v2.users SET name=$2,email=$3 WHERE id=$1 AND active=true RETURNING id,name,email,role,active,school_id",[id,name,email]);
  if(!rows.length)throw new DomainError("Conta não encontrada.",404);
  res.json({user:rows[0]});
 }));
