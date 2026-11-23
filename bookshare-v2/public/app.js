@@ -20,46 +20,63 @@ async function api(path,options={}){
  if(!response.ok)throw Error(data.error||"Não foi possível concluir a operação.");
  return data;
 }
-function showLogin(){state.user=null;$("#workspace").hidden=true;$("#login").hidden=false;}
+function showLogin(){
+ state.user=null;$("#landing").hidden=true;$("#workspace").hidden=true;$("#login").hidden=false;window.scrollTo(0,0);
+}
+function showLanding(){
+ state.user=null;$("#workspace").hidden=true;$("#login").hidden=true;$("#landing").hidden=false;window.scrollTo(0,0);
+}
 function showApp(user){
- state.user=user;$("#login").hidden=true;$("#workspace").hidden=false;
+ state.user=user;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
+ $("#hello-name").textContent=user.name.split(" ")[0];
  $("#user-label").textContent=user.name+" · "+(user.role==="admin"?"Administração":"Biblioteca");
  $$(".admin-only").forEach(el=>el.hidden=user.role!=="admin");
  navigate("home");
 }
 async function refresh(route=state.route){
  try{
-   if(route==="home"){
-     const d=await api("/dashboard");renderDashboard(d);
-   }else if(route==="books"){
-     const q=$("#books-search").value.trim();
-     const d=await api("/books?q="+encodeURIComponent(q)+"&limit=1000");state.books=d.items;renderBooks(d.items);
-   }else if(route==="students"){
-     const q=$("#students-search").value.trim();
-     const d=await api("/students?q="+encodeURIComponent(q)+"&limit=1000");state.students=d.items;renderStudents(d.items);
-   }else if(route==="loans"){
-     const d=await api("/loans?status="+state.loanFilter+"&limit=200");state.loans=d.items;renderLoans(d.items);
-   }else if(route==="reservations"){
-     const d=await api("/reservations?limit=100");state.reservations=d.items;renderReservations(d.items);
-   }else if(route==="users"){
-     if(state.user?.role!=="admin")return navigate("home");
-     const d=await api("/users");state.users=d.items;renderUsers(d.items);
-   }
- }catch(e){toast(e.message,true);}
+  if(route==="home"){
+   renderDashboard(await api("/dashboard"));
+  }else if(route==="books"){
+   const q=$("#books-search").value.trim();
+   const d=await api("/books?q="+encodeURIComponent(q)+"&limit=1000");
+   state.books=d.items;renderBooks(d.items);
+  }else if(route==="students"){
+   const q=$("#students-search").value.trim();
+   const d=await api("/students?q="+encodeURIComponent(q)+"&limit=1000");
+   state.students=d.items;renderStudents(d.items);
+  }else if(route==="loans"){
+   const d=await api("/loans?status="+state.loanFilter+"&limit=200");state.loans=d.items;renderLoans(d.items);
+  }else if(route==="returns"){
+   const q=$("#returns-search").value.trim();
+   const d=await api("/loans?status=active&limit=200&q="+encodeURIComponent(q));
+   state.loans=d.items;renderReturns(d.items);
+  }else if(route==="reports"){
+   renderReports(await api("/reports"));
+  }else if(route==="reservations"){
+   const d=await api("/reservations?limit=100");state.reservations=d.items;renderReservations(d.items);
+  }else if(route==="users"){
+   if(state.user?.role!=="admin")return navigate("home");
+   const d=await api("/users");state.users=d.items;renderUsers(d.items);
+  }
+ }catch(err){toast(err.message,true);}
 }
 function navigate(route){
- if(!["home","books","students","loans","reservations","users"].includes(route))route="home";
- if(route==="users" && state.user?.role!=="admin")return;
+ if(!["home","books","students","loans","returns","reports","reservations","users"].includes(route))route="home";
+ if(route==="users"&&state.user?.role!=="admin")return;
  state.route=route;
  $$(".page").forEach(el=>el.hidden=el.dataset.page!==route);
  $$(".nav-link").forEach(el=>el.classList.toggle("active",el.dataset.route===route));
- $("#sidebar").classList.remove("open");refresh(route);
+ $("#sidebar").classList.remove("open");
+ $("#menu-toggle").setAttribute("aria-expanded","false");
+ document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe"}[route]||"Biblioteca");
+ refresh(route);
 }
 const message = text=>'<p class="empty">'+esc(text)+'</p>';
 const chip=(label,variant="")=>'<span class="pill '+variant+'">'+esc(label)+'</span>';
 function renderDashboard(data){
  const m=data.metrics||{};
- const stats=[["Livros cadastrados",m.books],["Exemplares disponíveis",m.available],["Empréstimos ativos",m.active_loans],["Alunos ativos",m.students],["Em atraso",m.overdue],["Reservas pendentes",m.reservations]];
+ const stats=[["Livros no acervo",m.books],["Alunos cadastrados",m.students],["Empréstimos ativos",m.active_loans],["Em atraso",m.overdue]];
  $("#stats").innerHTML=stats.map(([label,val])=>'<div class="stat"><span>'+esc(label)+'</span><strong>'+esc(val??0)+'</strong></div>').join("");
  $("#attention").innerHTML=(data.attention||[]).map(x=>'<div class="item-line"><div><strong>'+esc(x.book)+'</strong><small>'+esc(x.student)+' · '+esc(x.code)+'</small></div>'+chip(fmt(x.due_date),x.due_date?.slice(0,10)<new Date().toISOString().slice(0,10)?"bad":"warn")+'</div>').join("")||message("Nenhuma devolução urgente. Tudo em dia!");
  $("#recent").innerHTML=(data.recent||[]).map(x=>'<div class="item-line"><div><strong>'+esc(x.book)+'</strong><small>'+esc(x.student)+' · '+fmt(x.loaned_at)+'</small></div>'+chip(x.status==="active"?"Emprestado":"Devolvido",x.status==="active"?"warn":"")+'</div>').join("")||message("Os próximos empréstimos aparecem aqui.");
@@ -71,6 +88,7 @@ function renderBooks(items){
    const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
    return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button></div></div></article>';
  }).join("")||message("Ainda não há livros no acervo.");
+ $("#books-count").textContent=items.length+" título"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
 }
 function avatar(item){
@@ -83,6 +101,7 @@ function table(head,rows){
 function renderStudents(items){
  const rows=items.slice(0,state.studentVisible);
  $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],rows.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button></td></tr>'));
+ $("#students-count").textContent=items.length+" aluno"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#students-table").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="students">Mostrar mais alunos ('+esc(items.length-rows.length)+')</button></div>');
 }
 function renderLoans(items){
