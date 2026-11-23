@@ -66,7 +66,7 @@ test("escolas independentes e exclusões com proteção", {timeout:60000},async 
  await page.screenshot({path:"artifacts/15-cadastro-escola.png",fullPage:true});
  await page.locator('#modal-form button[type=submit]').click();
  await page.locator("#dialog").waitFor({state:"hidden"});
- await page.getByText("Escola Pela Interface",{exact:true}).first().waitFor();
+ await page.locator("#schools-table strong").getByText("Escola Pela Interface",{exact:true}).waitFor();
  await page.screenshot({path:"artifacts/16-escola-cadastrada.png",fullPage:true});
  const schoolChoice=await page.locator('#school-selector').inputValue();
  assert.ok(schoolChoice);
