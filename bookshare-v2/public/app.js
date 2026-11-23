@@ -349,7 +349,8 @@ async function openModal(type,extra){
    const entries=all.map(c=>{
      const actions=state.user?.role==="admin" && c.status!=="loaned"?
        '<div class="copy-actions">'+(c.status!=="available"?'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="available" data-book="'+esc(book.id)+'">Disponibilizar</button>':'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="damaged" data-book="'+esc(book.id)+'">Marcar danificado</button>')+
-       (c.status!=="lost"?'<button class="small-button danger-text" data-copy-action="'+esc(c.id)+'" data-status="lost" data-book="'+esc(book.id)+'">Extraviado</button>':'')+'</div>':'';
+       (c.status!=="lost"?'<button class="small-button danger-text" data-copy-action="'+esc(c.id)+'" data-status="lost" data-book="'+esc(book.id)+'">Extraviado</button>':'')+
+       '<button class="small-button danger-text" data-delete-copy="'+esc(c.id)+'">Excluir</button></div>':'';
      return '<div class="copy-line"><div><strong>'+esc(c.code)+'</strong><small>'+esc(labels[c.status]||c.status)+'</small></div>'+actions+'</div>';
    }).join("")||message("Ainda não há exemplares deste livro.");
    $("#dialog-content").innerHTML='<div class="modal-heading"><span class="eyebrow">ACERVO · EXEMPLARES</span><h2 id="dialog-heading">'+esc(book.title)+'</h2><p class="muted">Acompanhe cada exemplar físico.</p></div>'+
@@ -505,7 +506,7 @@ document.addEventListener("click",async e=>{
   const current=state.books.find(x=>x.id===el.dataset.deleteBook);
   if(current)return openModal("delete",{kind:"book",id:current.id,label:current.title});
  }
- if(el.dataset.deleteCopy)return openModal("delete",{kind:"copy",id:el.dataset.deleteCopy,label:"exemplar"});
+ if(el.dataset.deleteCopy){if(dialog.open)dialog.close();return openModal("delete",{kind:"copy",id:el.dataset.deleteCopy,label:"exemplar"});}
 
  if(el.dataset.editUser)return openModal("user",el.dataset.editUser);
  if(el.dataset.resetUser)return openModal("reset-user",el.dataset.resetUser);
