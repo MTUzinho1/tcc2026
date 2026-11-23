@@ -1,53 +1,47 @@
-# BookShare V2 — reconstrução
+# BookShare V2 — Interface verde acolhedora
 
-Versão independente para substituir gradualmente o BookShare antigo. **A branch main e o banco de produção antigo não são alterados.**
+Esta é a implementação ativa do BookShare. Foi reconstruída para funcionar de maneira simples com profissionais de biblioteca escolar, sem depender de conhecimento técnico.
 
-## Identidade
-Interface redesenhada do zero: tipografia moderna, navegação grafite e azul intenso, com telas claras, navegação consistente para administração e biblioteca, telas responsivas.
+## Experiência de uso
 
-## O que está implementado no código
-- Login e logout usando cookie HTTP-only, SameSite Strict, JWT com validade de 8 horas, verificação de origem em operações de escrita
-- Cadastro e edição de alunos, com foto opcional
-- Cadastro de obras, capas próprias e exemplares físicos com código individual
-- Empréstimo com transação SQL e trava do exemplar para evitar empréstimos simultâneos
-- Devolução com atualização transacional do estado da cópia, incluindo danificado/extraviado
-- Renovação com limite de duas vezes
-- Reservas e mudança de status; painel de indicadores e vencimentos
-- Contas para administradores e bibliotecárias; upload de foto/capa redimensionada para WebP
+Uma landing page explica o produto, seguida de login simples, dashboard com quatro tarefas principais e páginas objetivas. Os botões são grandes, os formulários têm rótulos visíveis e a busca por aluno/exemplar evita centenas de opções difíceis de percorrer.
 
-**Atenção:** isto é uma base inicial da reconstrução, não um sistema homologado. O fluxo real ponta a ponta e o visual em dispositivos distintos ainda precisam de testes com banco PostgreSQL, dados de demonstração e navegador. Não conecte o banco antigo sem planejar migração.
+O visual usa tons de verde-floresta, branco, áreas de respiro e boa hierarquia tipográfica. Há layouts de desktop e celular.
 
-## Instalação local
-1. Instale Node.js 20+, PostgreSQL e use preferencialmente um banco de desenvolvimento novo ou aplique o esquema isolado `bookshare_v2` em uma instância de testes. Não reutilize dados de produção sem backup.
-2. Execute o arquivo `schema.sql` em uma instância de testes, conferindo as permissões antes. As tabelas ficam no schema privado `bookshare_v2`, sem acesso público via Data API. Ex.: `psql "$DATABASE_URL" -f schema.sql`.
-3. Copie `.env.example` para `.env` e configure `DATABASE_URL`, `JWT_SECRET` (32+ caracteres), `APP_ORIGIN=http://localhost:3000`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` (12+ caracteres).
-4. Entre na pasta `bookshare-v2` e rode `npm install`, `npm run check`, `npm test` e `npm start`.
-5. Abra `http://localhost:3000` e faça login com o administrador inicial.
+## Funcionalidades implementadas
 
-A configuração `render.yaml` prepara um serviço staging independente do Render. Configure os segredos e a URL exata antes de ativar o serviço. O projeto Supabase existente estava inativo e recebeu um pedido de restauração; a migração ainda não foi aplicada.
+Login, logout, atualização de senha, indicadores, cadastro e edição de aluno/livro, upload de imagens, exemplares, empréstimos, renovações, devoluções, reservas e relatórios agregados. Operações de retirada e devolução usam transações PostgreSQL e limites de integridade para impedir empréstimos duplicados.
 
-O bootstrap só cria o primeiro administrador quando a tabela `users` ainda está vazia; outras contas são criadas pela tela **Equipe**.
+A API não depende da interface para validar permissões, datas e estados.
 
-## Critérios para liberar a nova versão
-- Executar testes manuais completos no navegador: login; aluno; livro; capa; exemplar; empréstimo; devolução normal; devolução danificada; empréstimo duplicado; renovação; reserva e cancelamento
-- Testar sessões expiradas, erro de API e de banco, imagens inválidas, dispositivos móveis, acessibilidade e permissões
-- Conferir concorrência de operações, integridade das reservas e consultas com mais de 100 registros
-- Criar relatórios, trilha de auditoria, regras de prazo configuráveis, importação/migração, políticas de proteção dos dados escolares e testes de integração antes de produção
-- Implantar em uma hospedagem de teste; **não** alterar imediatamente o GitHub Pages ou o Render antigos
+## Preparar ambiente de desenvolvimento
 
-### Fotos de alunos e capas
-A V2 aceita **upload local opcional**, não usa fotos reais de estudantes automaticamente e não importa imagens protegidas de terceiros. Use consentimento e cuidado com dados pessoais dos alunos; para apresentação, prefira dados fictícios e imagens autorizadas.
+1. Instale Node.js 20+ e PostgreSQL.
+2. Crie um **banco novo de testes**, separado da produção.
+3. Execute `schema.sql` como usuário autorizado do banco.
+4. Copie `.env.example` para `.env`. Configure `DATABASE_URL`, `JWT_SECRET` com pelo menos 32 caracteres, `APP_ORIGIN` exata, `BOOTSTRAP_ADMIN_EMAIL` e `BOOTSTRAP_ADMIN_PASSWORD` (mínimo de 12 caracteres).
+5. Instale as dependências com `npm install`.
+6. Rode `npm run check` e `npm test`.
+7. Rode `npm start` e abra `http://localhost:3000`.
 
-### Estrutura
-```
-bookshare-v2/
-  public/index.html
-  public/styles.css
-  public/app.js
-  src/server.js
-  src/flows.js
-  tests/flows.test.js
-  schema.sql
-  package.json
-  .env.example
-```
+O bootstrap cria o administrador apenas se a tabela de usuários está vazia.
+
+## Testes automatizados
+
+O workflow `.github/workflows/bookshare-v2.yml` inicia PostgreSQL, instala Node e Chrome e executa as suítes com Playwright.
+
+Os cenários incluem:
+
+- Autenticação, origem de requisições, perfis e atualização de senha.
+- Alunos, livros, exemplares, fotos e capas.
+- Empréstimos simultâneos, devolução normal/danificada e renovações.
+- Reserva e retirada, integridade de registros, busca e relatórios.
+- Fluxo real no navegador, landing, login, painel, cadastro, empréstimo, devolução, relatório e layout móvel.
+
+## Produção
+
+O Render está configurado para iniciar pelo arquivo `server.js` da raiz, que importa `bookshare-v2/src/server.js`. O GitHub Pages encaminha a URL anterior para a aplicação.
+
+A V2 usa o schema `bookshare_v2` no Supabase. O schema público legado é mantido separado.
+
+Nunca grave credenciais no código. Configure-as no serviço de hospedagem. Troque senhas iniciais que já tenham sido publicadas. Revise autorização de imagem de alunos, logs, backups e política de privacidade antes de usar com dados escolares reais.

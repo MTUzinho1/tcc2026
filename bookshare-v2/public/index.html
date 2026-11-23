@@ -1,22 +1,116 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f7f3"><meta name="description" content="BookShare, uma biblioteca escolar mais simples de organizar."><title>BookShare — Biblioteca escolar</title><link rel="stylesheet" href="/styles.css"><script src="/app.js" defer></script></head>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f9f5">
+<meta name="description" content="BookShare: um jeito simples de cuidar da biblioteca escolar.">
+<title>BookShare — Sua biblioteca, mais simples</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="/app.js" defer></script>
+</head>
 <body>
+<svg class="icons" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+<symbol id="book" viewBox="0 0 24 24"><path d="M4 5.5C4 4.1 5.1 3 6.5 3H20v16H6.5C5.1 19 4 20 4 21V5.5ZM4 18a2.5 2.5 0 0 1 2.5-2.5H20"/></symbol>
+<symbol id="home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9H3v-9Zm6 9v-7h6v7"/></symbol>
+<symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+<symbol id="return" viewBox="0 0 24 24"><path d="m8 9-4-4-3 4m3-4v9a5 5 0 0 0 5 5h11M20 9V4h-8"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+<symbol id="calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></symbol>
+<symbol id="chart" viewBox="0 0 24 24"><path d="M4 3v17h17M9 16v-5m5 5V7m5 9v-7"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 3"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+<symbol id="menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+<symbol id="settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="m12 2 8 4v6c0 5-3 8-8 10-5-2-8-5-8-10V6zM9 12l2 2 4-4"/></symbol>
+</svg>
 <div id="toast" role="status" aria-live="polite"></div>
-<section id="login" class="auth-page">
-  <div class="auth-story"><div class="wordmark"><span class="mark">b.</span><span>bookshare</span></div><div><p class="eyebrow">UMA BIBLIOTECA MAIS HUMANA</p><h1>Boas histórias começam com organização.</h1><p class="intro">O cuidado com cada livro. A atenção com cada aluno. Tudo em um só lugar.</p></div><p class="fine">Biblioteca escolar · Uma nova forma de cuidar do acervo</p></div>
-  <div class="auth-panel"><div class="mobile-brand">bookshare<span>.</span></div><div class="auth-form"><p class="eyebrow">ACESSO RESTRITO</p><h2>Bem-vindo de volta.</h2><p class="muted">Entre com a conta cadastrada pela administração.</p><form id="login-form"><label>E-mail<input type="email" name="email" autocomplete="username" placeholder="nome@escola.com" required></label><label>Senha<input type="password" name="password" autocomplete="current-password" placeholder="Sua senha" required></label><button class="button primary full" type="submit">Entrar no BookShare <span aria-hidden="true">↗</span></button></form><p id="auth-error" role="alert" class="error"></p></div></div>
+<section id="landing">
+<header class="site-header container">
+  <a class="brand" href="#inicio" aria-label="BookShare - início"><span class="brand-icon"><svg class="ico"><use href="#book"/></svg></span><span class="brand-name"><strong>BookShare</strong><small>Biblioteca escolar</small></span></a>
+  <nav class="site-links" aria-label="Navegação do site"><a href="#como-funciona">Como funciona</a><a href="#para-quem">Para quem é</a></nav>
+  <button class="button primary" data-action="open-login">Acessar sistema <svg class="ico"><use href="#arrow"/></svg></button>
+</header>
+<main id="inicio">
+<section class="hero container">
+  <div class="hero-copy">
+    <div class="eyebrow hero-kicker"><span class="green-dot"></span> BIBLIOTECA ORGANIZADA, COM CARINHO</div>
+    <h1>Mais tempo para <em>cuidar das histórias.</em></h1>
+    <p class="hero-description">Organize livros, alunos, empréstimos e devoluções de um jeito leve e fácil. Tudo o que a equipe da biblioteca precisa, em um só lugar.</p>
+    <div class="hero-buttons"><button class="button primary large" data-action="open-login">Entrar na biblioteca <svg class="ico"><use href="#arrow"/></svg></button><a class="button outline large" href="#como-funciona">Entenda como funciona</a></div>
+    <div class="hero-foot"><svg class="ico"><use href="#check"/></svg> Simples de aprender. Gostoso de usar.</div>
+  </div>
+  <div class="hero-visual" aria-label="Ilustração da interface simples do BookShare">
+    <div class="hero-halo"></div><div class="hero-spark spark-a">✳</div><div class="hero-spark spark-b">✦</div>
+    <div class="preview-panel">
+      <div class="preview-header"><span class="preview-logo"><svg class="ico"><use href="#book"/></svg></span><div><b>Bom dia!</b><small>O que você precisa fazer hoje?</small></div><span class="preview-dots">•••</span></div>
+      <div class="preview-action"><span><svg class="ico"><use href="#arrow"/></svg></span><div><b>Fazer empréstimo</b><small>Emprestar um livro para um aluno</small></div><i>›</i></div>
+      <div class="preview-action"><span><svg class="ico"><use href="#return"/></svg></span><div><b>Registrar devolução</b><small>Receber um livro de volta</small></div><i>›</i></div>
+      <div class="preview-bottom"><span class="green-dot"></span> Tudo organizado, sem complicação.</div>
+    </div>
+    <div class="book-illustration book-one"></div><div class="book-illustration book-two"></div>
+  </div>
+</section>
+<section id="como-funciona" class="benefits section-pad">
+  <div class="container"><div class="section-heading"><span class="eyebrow">POR QUE BOOKSHARE?</span><h2>O simples também pode ser incrível.</h2><p>Feito para facilitar o trabalho de quem cuida da nossa biblioteca todos os dias.</p></div>
+  <div class="benefit-grid">
+    <article class="benefit-card"><span class="benefit-icon"><svg class="ico"><use href="#search"/></svg></span><h3>Encontre rapidinho</h3><p>Pesquise pelo nome do aluno, título do livro ou número da matrícula.</p></article>
+    <article class="benefit-card"><span class="benefit-icon"><svg class="ico"><use href="#arrow"/></svg></span><h3>Empreste sem complicar</h3><p>Escolha o aluno e o livro. Confirme a data e pronto.</p></article>
+    <article class="benefit-card"><span class="benefit-icon"><svg class="ico"><use href="#check"/></svg></span><h3>Saiba o que falta</h3><p>Consulte as devoluções e acompanhe o acervo sem perder tempo.</p></article>
+  </div></div>
+</section>
+<section id="para-quem" class="container mission"><span class="mission-symbol"><svg class="ico"><use href="#book"/></svg></span><div><span class="eyebrow">PENSADO PARA A BIBLIOTECA</span><h2>A tecnologia deve ajudar, nunca atrapalhar.</h2><p>Um sistema acolhedor, claro e confiável para bibliotecárias e equipes escolares.</p></div><button class="button white" data-action="open-login">Começar agora <svg class="ico"><use href="#arrow"/></svg></button></section>
+</main>
+<footer class="site-footer container"><span><strong>BookShare</strong> · Biblioteca escolar</span><span>Organização com cuidado.</span></footer>
+</section>
+<section id="login" class="auth-page" hidden>
+  <div class="auth-story"><a class="brand" href="/" data-action-link="landing"><span class="brand-icon"><svg class="ico"><use href="#book"/></svg></span><span class="brand-name"><strong>BookShare</strong><small>Biblioteca escolar</small></span></a><div class="auth-quote"><span class="eyebrow">BEM-VINDA À SUA BIBLIOTECA</span><h2>Seu trabalho merece ser <em>mais leve.</em></h2><p>Deixe os livros organizados e as preocupações para trás.</p></div><div class="auth-doodle">✳</div></div>
+  <div class="auth-panel"><div class="auth-form"><button class="back-link" data-action="back-landing" type="button">← Voltar ao início</button><span class="eyebrow">ÁREA DA EQUIPE</span><h1>Que bom ter você aqui.</h1><p class="muted">Entre com seu e-mail e senha para começar.</p><form id="login-form"><label>E-mail<input name="email" type="email" autocomplete="username" placeholder="email@escola.com" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required></label><button type="submit" class="button primary full">Entrar no BookShare <svg class="ico"><use href="#arrow"/></svg></button></form><p id="auth-error" role="alert" class="error"></p><p class="auth-security"><svg class="ico"><use href="#shield"/></svg> Acesso reservado à equipe da biblioteca</p></div></div>
 </section>
 <section id="workspace" hidden>
-<header class="top"><div class="top-brand"><span class="mark">b.</span><strong>bookshare</strong></div><button class="mobile-menu" id="menu-toggle" type="button" aria-label="Abrir menu">☰</button><div class="top-right"><span id="user-label"></span><button class="text-button" id="logout" type="button">Sair ↗</button></div></header>
+<header class="top"><div class="top-brand"><span class="brand-icon small"><svg class="ico"><use href="#book"/></svg></span><div><strong>BookShare</strong><small>Biblioteca escolar</small></div></div><div class="top-right"><span id="user-label"></span><button class="text-button" id="logout" type="button">Sair</button><button id="menu-toggle" class="mobile-menu" aria-label="Abrir menu" aria-expanded="false" type="button"><svg class="ico"><use href="#menu"/></svg></button></div></header>
 <div class="shell">
-<nav class="sidebar" id="sidebar" aria-label="Navegação principal"><p class="nav-title">BIBLIOTECA</p><button class="nav-link active" data-route="home"><span>◫</span> Visão geral</button><button class="nav-link" data-route="loans"><span>⇄</span> Empréstimos</button><button class="nav-link" data-route="books"><span>▤</span> Acervo</button><button class="nav-link" data-route="students"><span>♙</span> Alunos</button><button class="nav-link" data-route="reservations"><span>◇</span> Reservas</button><p class="nav-title gap-top">GESTÃO</p><button class="nav-link admin-only" data-route="users"><span>⚙</span> Equipe</button><div class="sidebar-bottom"><span class="subtle-dot"></span> BookShare V2 <small>Uma nova experiência</small><button type="button" class="sidebar-settings" data-modal="password">Alterar minha senha</button></div></nav>
-<main class="main">
-<section class="page" data-page="home"><div class="page-head"><div><p class="eyebrow">SEU ESPAÇO DE TRABALHO</p><h1>Bom trabalho<span class="accent">.</span></h1><p class="muted">O que precisa da sua atenção hoje?</p></div><button class="button primary" data-action="go-loan">+ Novo empréstimo</button></div><div class="stats" id="stats"></div><div class="two-columns"><article class="surface"><div class="section-head"><div><p class="eyebrow">ACOMPANHAMENTO</p><h2>Próximas devoluções</h2></div><span class="muted small">Vencidas ou em até 3 dias</span></div><div id="attention"></div></article><article class="surface"><div class="section-head"><div><p class="eyebrow">ATIVIDADE</p><h2>Movimentações recentes</h2></div></div><div id="recent"></div></article></div></section>
-<section class="page" data-page="loans" hidden><div class="page-head"><div><p class="eyebrow">ATENDIMENTO</p><h1>Empréstimos<span class="accent">.</span></h1><p class="muted">Retiradas, devoluções e renovações sem complicação.</p></div><button class="button primary" data-modal="loan">+ Novo empréstimo</button></div><div class="toolbar"><div class="segmented"><button data-loan-filter="active" class="selected">Em andamento</button><button data-loan-filter="returned">Devolvidos</button><button data-loan-filter="all">Todos</button></div></div><div class="surface"><div id="loans-table"></div></div></section>
-<section class="page" data-page="books" hidden><div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Nosso acervo<span class="accent">.</span></h1><p class="muted">Um lugar para cada história.</p></div><button class="button primary" data-modal="book">+ Adicionar livro</button></div><div class="toolbar"><input class="search" id="books-search" type="search" placeholder="Buscar título, autor ou ISBN..." aria-label="Buscar livros"></div><div class="book-grid" id="books-grid"></div></section>
-<section class="page" data-page="students" hidden><div class="page-head"><div><p class="eyebrow">COMUNIDADE</p><h1>Nossos alunos<span class="accent">.</span></h1><p class="muted">Pessoas, não apenas matrículas.</p></div><button class="button primary" data-modal="student">+ Cadastrar aluno</button></div><div class="toolbar"><input class="search" id="students-search" type="search" placeholder="Buscar nome ou matrícula..." aria-label="Buscar alunos"></div><div class="surface" id="students-table"></div></section>
-<section class="page" data-page="reservations" hidden><div class="page-head"><div><p class="eyebrow">LISTA DE ESPERA</p><h1>Reservas<span class="accent">.</span></h1><p class="muted">Acompanhe cada solicitação.</p></div><button class="button primary" data-modal="reservation">+ Nova reserva</button></div><div class="surface" id="reservations-table"></div></section>
-<section class="page" data-page="users" hidden><div class="page-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Equipe<span class="accent">.</span></h1><p class="muted">Quem cuida da nossa biblioteca.</p></div><button class="button primary" data-modal="user">+ Adicionar pessoa</button></div><div class="surface" id="users-table"></div></section>
-</main></div></section>
-<dialog id="dialog"><form method="dialog"><button id="dialog-close" class="dialog-close" aria-label="Fechar" value="cancel" type="submit">×</button></form><div id="dialog-content"></div></dialog>
+<nav id="sidebar" class="sidebar" aria-label="Menu principal">
+  <p class="nav-title">MENU PRINCIPAL</p>
+  <button class="nav-link active" data-route="home"><svg class="ico"><use href="#home"/></svg> Início</button>
+  <button class="nav-link" data-route="loans"><svg class="ico"><use href="#arrow"/></svg> Empréstimos</button>
+  <button class="nav-link" data-route="returns"><svg class="ico"><use href="#return"/></svg> Devoluções</button>
+  <button class="nav-link" data-route="books"><svg class="ico"><use href="#book"/></svg> Livros</button>
+  <button class="nav-link" data-route="students"><svg class="ico"><use href="#user"/></svg> Alunos</button>
+  <button class="nav-link" data-route="reservations"><svg class="ico"><use href="#calendar"/></svg> Reservas</button>
+  <button class="nav-link" data-route="reports"><svg class="ico"><use href="#chart"/></svg> Relatórios</button>
+  <p class="nav-title gap-top">CONFIGURAÇÕES</p>
+  <button class="nav-link admin-only" data-route="users"><svg class="ico"><use href="#settings"/></svg> Equipe</button>
+  <div class="sidebar-bottom"><div class="sidebar-tip"><svg class="ico"><use href="#check"/></svg><div><b>Um passo de cada vez.</b><small>Escolha uma tarefa para começar.</small></div></div><button class="sidebar-settings" data-modal="password">Alterar minha senha</button></div>
+</nav>
+<main class="main" id="app-main">
+<section class="page" data-page="home">
+ <div class="welcome"><div><span class="eyebrow">SUA BIBLIOTECA</span><h1>Olá, <span id="hello-name">bem-vinda</span>! <span class="wave">✳</span></h1><p>O que você gostaria de fazer hoje?</p></div><div class="welcome-books" aria-hidden="true"><span></span><span></span><span></span></div></div>
+ <div class="section-head activities-title"><div><h2>Atividades do dia</h2><p class="muted">Escolha uma opção para começar.</p></div></div>
+ <div class="quick-grid">
+ <button class="quick-card" data-action="go-loan"><span class="quick-icon"><svg class="ico"><use href="#arrow"/></svg></span><b>Fazer empréstimo</b><small>Emprestar um livro a um aluno</small><span class="quick-chevron">→</span></button>
+ <button class="quick-card" data-route="returns"><span class="quick-icon"><svg class="ico"><use href="#return"/></svg></span><b>Registrar devolução</b><small>Receber um livro de volta</small><span class="quick-chevron">→</span></button>
+ <button class="quick-card" data-modal="book"><span class="quick-icon"><svg class="ico"><use href="#book"/></svg></span><b>Cadastrar livro</b><small>Adicionar um novo título</small><span class="quick-chevron">→</span></button>
+ <button class="quick-card" data-modal="student"><span class="quick-icon"><svg class="ico"><use href="#user"/></svg></span><b>Cadastrar aluno</b><small>Incluir um estudante</small><span class="quick-chevron">→</span></button>
+ </div>
+ <div class="section-head summary-title"><div><h2>Resumo da biblioteca</h2><p class="muted">Acompanhe as informações mais importantes.</p></div></div>
+ <div class="stats" id="stats"></div>
+ <div class="two-columns">
+ <article class="surface"><div class="section-head"><div><span class="eyebrow">ACOMPANHAMENTO</span><h2>Devoluções próximas</h2></div><button class="subtle-action" data-route="returns">Ver todas →</button></div><div id="attention"></div></article>
+ <article class="surface"><div class="section-head"><div><span class="eyebrow">MOVIMENTAÇÕES</span><h2>Atividade recente</h2></div></div><div id="recent"></div></article>
+ </div>
+</section>
+<section class="page" data-page="loans" hidden><div class="page-head"><div><span class="eyebrow">ATENDIMENTO</span><h1>Empréstimos</h1><p class="muted">Consulte livros emprestados ou registre uma retirada.</p></div><button class="button primary" data-modal="loan"><svg class="ico"><use href="#plus"/></svg> Novo empréstimo</button></div><div class="toolbar"><div class="segmented"><button data-loan-filter="active" class="selected">Em andamento</button><button data-loan-filter="returned">Devolvidos</button><button data-loan-filter="all">Todos</button></div></div><div class="surface table-surface" id="loans-table"></div></section>
+<section class="page" data-page="returns" hidden><div class="page-head"><div><span class="eyebrow">ATENDIMENTO</span><h1>Registrar devolução</h1><p class="muted">Encontre o empréstimo e confirme a chegada do livro.</p></div></div><div class="simple-step"><span>1</span><div><b>Procure o aluno ou o livro</b><small>Você também pode buscar pelo código do exemplar.</small></div></div><div class="toolbar"><div class="search-wrap"><svg class="ico"><use href="#search"/></svg><input class="search" type="search" id="returns-search" placeholder="Buscar aluno, livro ou código..." aria-label="Buscar empréstimo para devolução"></div></div><div class="simple-step"><span>2</span><div><b>Clique em “Devolver”</b><small>Confira os dados e confirme o recebimento.</small></div></div><div class="surface table-surface" id="returns-table"></div></section>
+<section class="page" data-page="books" hidden><div class="page-head"><div><span class="eyebrow">ACERVO</span><h1>Livros da biblioteca</h1><p class="muted">Pesquise títulos e organize os exemplares.</p></div><button class="button primary" data-modal="book"><svg class="ico"><use href="#plus"/></svg> Cadastrar livro</button></div><div class="toolbar"><div class="search-wrap"><svg class="ico"><use href="#search"/></svg><input id="books-search" class="search" type="search" placeholder="Buscar título, autor ou ISBN..." aria-label="Buscar livros"></div><span class="result-count" id="books-count"></span></div><div class="book-grid" id="books-grid"></div></section>
+<section class="page" data-page="students" hidden><div class="page-head"><div><span class="eyebrow">ALUNOS</span><h1>Cadastro de alunos</h1><p class="muted">Encontre um estudante ou faça um novo cadastro.</p></div><button class="button primary" data-modal="student"><svg class="ico"><use href="#plus"/></svg> Cadastrar aluno</button></div><div class="toolbar"><div class="search-wrap"><svg class="ico"><use href="#search"/></svg><input id="students-search" class="search" type="search" placeholder="Buscar nome ou matrícula..." aria-label="Buscar alunos"></div><span class="result-count" id="students-count"></span></div><div class="surface table-surface" id="students-table"></div></section>
+<section class="page" data-page="reservations" hidden><div class="page-head"><div><span class="eyebrow">LISTA DE ESPERA</span><h1>Reservas</h1><p class="muted">Acompanhe os livros solicitados pelos alunos.</p></div><button class="button primary" data-modal="reservation"><svg class="ico"><use href="#plus"/></svg> Nova reserva</button></div><div class="surface table-surface" id="reservations-table"></div></section>
+<section class="page" data-page="reports" hidden><div class="page-head"><div><span class="eyebrow">ACOMPANHAMENTO</span><h1>Relatórios</h1><p class="muted">Veja os números mais importantes da biblioteca.</p></div><button class="button secondary" data-action="print-reports">Imprimir resumo</button></div><div id="report-content"></div></section>
+<section class="page" data-page="users" hidden><div class="page-head"><div><span class="eyebrow">ADMINISTRAÇÃO</span><h1>Equipe da biblioteca</h1><p class="muted">Gerencie quem pode acessar o sistema.</p></div><button class="button primary" data-modal="user"><svg class="ico"><use href="#plus"/></svg> Adicionar pessoa</button></div><div class="surface table-surface" id="users-table"></div></section>
+</main>
+</div>
+</section>
+<dialog id="dialog" aria-label="Formulário do BookShare"><form method="dialog"><button id="dialog-close" class="dialog-close" value="cancel" aria-label="Fechar janela" type="submit">×</button></form><div id="dialog-content"></div></dialog>
 </body></html>
