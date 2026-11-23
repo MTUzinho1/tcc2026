@@ -120,7 +120,7 @@ app.get("/api/reports",wrap(async(req,res)=>{
      (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active') active_loans,
      (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='active' AND due_date<CURRENT_DATE) overdue,
      (SELECT count(*)::int FROM bookshare_v2.loans WHERE status='returned') returned`),
-   query(`SELECT to_char(date_trunc('month',loaned_at),'MM/YYYY') month,count(*)::int total
+   query(`SELECT to_char(date_trunc('month',loaned_at),'MM/YYYY') AS "month",count(*)::int AS total
       FROM bookshare_v2.loans GROUP BY date_trunc('month',loaned_at)
       ORDER BY date_trunc('month',loaned_at) DESC LIMIT 6`),
    query(`SELECT b.title,b.author,count(l.id)::int total
