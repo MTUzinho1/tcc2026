@@ -275,6 +275,21 @@ async function openModal(type,extra){
    openDialog("Novo exemplar","Cada cópia física tem um código próprio.",fields,async b=>api("/copies",{method:"POST",body:JSON.stringify(b)}));
    if(extra)$("#modal-form [name=book_id]").value=extra;
  }
+ else if(type==="copies"){
+   const book=state.books.find(x=>x.id===extra);
+   if(!book)return;
+   const all=await getItems("/copies?book_id="+encodeURIComponent(book.id)+"&limit=1000");
+   const labels={available:"Disponível",loaned:"Emprestado",damaged:"Danificado",lost:"Extraviado"};
+   const entries=all.map(c=>{
+     const actions=state.user?.role==="admin" && c.status!=="loaned"?
+       '<div class="copy-actions">'+(c.status!=="available"?'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="available" data-book="'+esc(book.id)+'">Disponibilizar</button>':'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="damaged" data-book="'+esc(book.id)+'">Marcar danificado</button>')+
+       (c.status!=="lost"?'<button class="small-button danger-text" data-copy-action="'+esc(c.id)+'" data-status="lost" data-book="'+esc(book.id)+'">Extraviado</button>':'')+'</div>':'';
+     return '<div class="copy-line"><div><strong>'+esc(c.code)+'</strong><small>'+esc(labels[c.status]||c.status)+'</small></div>'+actions+'</div>';
+   }).join("")||message("Ainda não há exemplares deste livro.");
+   $("#dialog-content").innerHTML='<div class="modal-heading"><span class="eyebrow">ACERVO · EXEMPLARES</span><h2 id="dialog-heading">'+esc(book.title)+'</h2><p class="muted">Acompanhe cada exemplar físico.</p></div>'+
+      '<div class="copy-list">'+entries+'</div><div class="form-actions"><button class="button secondary" type="button" data-close>Fechar</button><button class="button primary" type="button" data-add-copy="'+esc(book.id)+'">+ Adicionar exemplar</button></div>';
+   dialog.showModal();
+  }
  else if(type==="loan"){
    const [students,copies]=await Promise.all([getItems("/students?limit=1000"),getItems("/copies?limit=1000")]);
    const activeStudents=students.filter(x=>x.active);
