@@ -148,7 +148,7 @@ app.patch("/api/books/:id",wrap(async(req,res)=>{
 }));
 app.get("/api/copies",wrap(async(req,res)=>{
  let id=req.query.book_id; if(id)validUuid(id);
- const rows=await query("SELECT c.id,c.code,c.status,c.book_id,b.title FROM bookshare_v2.copies c JOIN bookshare_v2.books b ON b.id=c.book_id WHERE ($1::uuid IS NULL OR c.book_id=$1) ORDER BY b.title,c.code LIMIT $2",[id||null,numberLimit(req.query.limit,200)]);
+ const rows=await query("SELECT c.id,c.code,c.status,c.book_id,b.title FROM bookshare_v2.copies c JOIN bookshare_v2.books b ON b.id=c.book_id WHERE ($1::uuid IS NULL OR c.book_id=$1) ORDER BY b.title,c.code LIMIT $2",[id||null,numberLimit(req.query.limit,1000)]);
  res.json({items:rows});
 }));
 app.post("/api/copies",wrap(async(req,res)=>{
