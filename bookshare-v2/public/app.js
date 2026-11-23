@@ -279,37 +279,31 @@ async function openModal(type,extra){
    const [students,copies]=await Promise.all([getItems("/students?limit=1000"),getItems("/copies?limit=1000")]);
    const activeStudents=students.filter(x=>x.active);
    const ready=copies.filter(x=>x.status==="available");
-   if(!activeStudents.length||!ready.length)return toast("Cadastre alunos e exemplares disponíveis antes de emprestar.",true);
-   const due=new Date();due.setDate(due.getDate()+14);
-   const date=due.toISOString().slice(0,10);
-   const searchSelect=(label,searchName,selectName,placeholder)=>'<label class="wide">'+esc(label)+'<input type="search" name="'+searchName+'" placeholder="'+esc(placeholder)+'" autocomplete="off"></label><label class="wide">Escolha na lista<select name="'+selectName+'" required><option value="">Selecione</option></select></label>';
-   const fields=searchSelect("1. Buscar aluno","student_search","student_id","Digite nome ou matrícula")
-      +searchSelect("2. Buscar livro","copy_search","copy_id","Digite título ou código")
-      +field("3. Data prevista para devolução","due_date","","date",true,date,true);
-   openDialog("Fazer empréstimo","Procure o aluno e o livro. Depois confirme a data.",fields,async b=>{
-     if(!b.student_id||!b.copy_id)throw Error("É necessário selecionar o aluno e o livro.");
+   if(!activeStudents.length || !ready.length)return toast("É necessário ter um aluno ativo e um exemplar disponível.",true);
+   const date=new Date();date.setDate(date.getDate()+14);
+   const due=date.toISOString().slice(0,10);
+   const fields='<div class="loan-ui wide"><div class="loan-two">'+
+      pickerHtml("student","1  Quem vai levar?","Digite o nome ou matrícula do aluno")+
+      pickerHtml("copy","2  Qual livro?","Digite o título ou código do exemplar")+
+      '</div><div class="loan-bottom">'+field("3  Devolver até","due_date","","date",true,due,true)+
+      '<div class="loan-summary" aria-live="polite"><strong>Confira antes de registrar</strong><span id="loan-check-name">Selecione um aluno</span><span id="loan-check-book">Selecione um livro</span></div></div></div>';
+   openDialog("Novo empréstimo","Encontre o aluno, escolha o livro e confirme. Só isso.",fields,async b=>{
+     if(!b.student_id || !b.copy_id)throw Error("Selecione um aluno e um livro nas sugestões.");
      await api("/loans",{method:"POST",body:JSON.stringify({student_id:b.student_id,copy_id:b.copy_id,due_date:b.due_date})});
    },"Confirmar empréstimo");
+   dialog.classList.add("dialog-loan");
+   dialog.addEventListener("close",()=>dialog.classList.remove("dialog-loan"),{once:true});
    const form=$("#modal-form");
-   const bind=(searchName,selectName,items,labelFn)=>{
-     const input=form.querySelector('[name="'+searchName+'"]');
-     const select=form.querySelector('[name="'+selectName+'"]');
-     const normalize=v=>v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-     const update=()=>{
-       const q=normalize(input.value.trim());
-       const previous=select.value;
-       const list=items.filter(x=>normalize(labelFn(x)).includes(q)).slice(0,40);
-       select.replaceChildren(new Option(list.length?"Selecione uma opção":"Nenhum resultado encontrado",""));
-       for(const item of list)select.add(new Option(labelFn(item),item.id));
-       if(list.some(x=>x.id===previous))select.value=previous;
-     };
-     input.addEventListener("input",update);update();
-     return {input,select,update};
+   let student,copy;
+   const update=()=>{
+     $("#loan-check-name").textContent=student?.selected?"Aluno: "+student.selected.name:"Selecione um aluno";
+     $("#loan-check-book").textContent=copy?.selected?"Livro: "+copy.selected.title+" ("+copy.selected.code+")":"Selecione um livro";
    };
-   const a=bind("student_search","student_id",activeStudents,x=>x.name+" · "+x.registration);
-   const b=bind("copy_search","copy_id",ready,x=>x.title+" · "+x.code);
-   if(extra?.student_id){const selected=activeStudents.find(x=>x.id===extra.student_id);if(selected){a.input.value=selected.name;a.update();a.select.value=selected.id;}}
-   if(extra?.book_id){const selected=ready.find(x=>x.book_id===extra.book_id);if(selected){b.input.value=selected.title;b.update();b.select.value=selected.id;}}
+   student=bindPicker(form,"student",activeStudents,x=>x.name,x=>x.registration,update);
+   copy=bindPicker(form,"copy",ready,x=>x.title,x=>x.code,update);
+   if(extra?.student_id){const x=activeStudents.find(x=>x.id===extra.student_id);if(x)student.choose(x);}
+   if(extra?.book_id){const x=ready.find(x=>x.book_id===extra.book_id);if(x)copy.choose(x);}
+   if(!student.selected)student.search.focus();
   }
  else if(type==="reservation"){
    const [students,books]=await Promise.all([getItems("/students?limit=1000"),getItems("/books?limit=1000")]);
