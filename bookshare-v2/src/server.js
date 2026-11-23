@@ -15,6 +15,12 @@ const PORT = Number(process.env.PORT || 3000);
 const secret = String(process.env.JWT_SECRET || "");
 if (secret.length < 32) throw new Error("Configure JWT_SECRET com pelo menos 32 caracteres.");
 if (!process.env.DATABASE_URL) throw new Error("Configure DATABASE_URL de um banco NOVO da V2.");
+async function transactUser(pool,callback){
+ const db=await pool.connect();
+ try{await db.query("BEGIN");const value=await callback(db);await db.query("COMMIT");return value;}
+ catch(error){await db.query("ROLLBACK");throw error;}
+ finally{db.release();}
+}
 const pool = new Pool({connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_SSL === "true" ? {
   rejectUnauthorized:process.env.DATABASE_SSL_VERIFY === "true",
   ...(process.env.DATABASE_SSL_CA ? {ca:Buffer.from(process.env.DATABASE_SSL_CA,"base64").toString("utf8")}: {})
@@ -87,6 +93,16 @@ app.get("/api/me",authenticate,wrap(async(req,res)=>{
   res.json({user:users[0]});
 }));
 app.use("/api",authenticate);
+app.patch("/api/me",wrap(async(req,res)=>{
+ const b=payload(req),id=req.identity.sub;
+ const name=requiredText(b.name,"Nome",120);
+ const email=requiredText(b.email,"E-mail",180).toLowerCase();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new DomainError("Informe um e-mail válido.");
+ const rows=await query("UPDATE bookshare_v2.users SET name=$2,email=$3 WHERE id=$1 AND active=true RETURNING id,name,email,role,active",[id,name,email]);
+ if(!rows.length)throw new DomainError("Conta não encontrada.",404);
+ res.json({user:rows[0]});
+}));
+
 app.post("/api/me/password",wrap(async(req,res)=>{
   const body=payload(req),current=String(body.current_password||""),updated=String(body.new_password||"");
   if(updated.length<12 || updated.length>128) throw new DomainError("A nova senha deve ter entre 12 e 128 caracteres.");
@@ -229,9 +245,53 @@ app.post("/api/users",admin,wrap(async(req,res)=>{
  if(password.length<12)throw new DomainError("A senha precisa ter pelo menos 12 caracteres.");
  if(!["admin","librarian"].includes(b.role))throw new DomainError("Perfil inválido.");
  const hash=await bcrypt.hash(password,12);
+ const email=requiredText(b.email,"E-mail",180).toLowerCase();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new DomainError("Informe um e-mail válido.");
  const rows=await query("INSERT INTO bookshare_v2.users(name,email,password_hash,role) VALUES($1,$2,$3,$4) RETURNING id,name,email,role,active",
- [requiredText(b.name,"Nome"),requiredText(b.email,"E-mail",180).toLowerCase(),hash,b.role]);
+ [requiredText(b.name,"Nome",120),email,hash,b.role]);
  res.status(201).json({item:rows[0]});
+}));
+app.patch("/api/users/:id",admin,wrap(async(req,res)=>{
+ const id=validUuid(req.params.id),b=payload(req);
+ const name=requiredText(b.name,"Nome",120);
+ const email=requiredText(b.email,"E-mail",180).toLowerCase();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new DomainError("Informe um e-mail válido.");
+ if(!["admin","librarian"].includes(b.role))throw new DomainError("Perfil inválido.");
+ if(typeof b.active!=="boolean")throw new DomainError("Informe a situação da conta.");
+ const result=await transactUser(pool,async db=>{
+   await db.query("SELECT pg_advisory_xact_lock(2026001, 1)");
+   const target=await db.query("SELECT id,role,active FROM bookshare_v2.users WHERE id=$1 FOR UPDATE",[id]);
+   if(!target.rowCount)throw new DomainError("Funcionário não encontrado.",404);
+   if(id===req.identity.sub && (b.active===false || b.role!=="admin"))throw new DomainError("Você não pode remover seu próprio acesso de administrador.",409);
+   if(target.rows[0].active && target.rows[0].role==="admin" && (!b.active || b.role!=="admin")){
+     const count=await db.query("SELECT count(*)::int AS total FROM bookshare_v2.users WHERE active=true AND role='admin'");
+     if(count.rows[0].total<=1)throw new DomainError("A biblioteca precisa ter pelo menos um administrador ativo.",409);
+   }
+   const updated=await db.query("UPDATE bookshare_v2.users SET name=$2,email=$3,role=$4,active=$5 WHERE id=$1 RETURNING id,name,email,role,active,created_at",[id,name,email,b.role,b.active]);
+   return updated.rows[0];
+ });
+ res.json({item:result});
+}));
+app.post("/api/users/:id/reset-password",admin,wrap(async(req,res)=>{
+ const id=validUuid(req.params.id),password=String(payload(req).password||"");
+ if(password.length<12 || password.length>128)throw new DomainError("A senha deve ter entre 12 e 128 caracteres.");
+ const hash=await bcrypt.hash(password,12);
+ const rows=await query("UPDATE bookshare_v2.users SET password_hash=$2 WHERE id=$1 RETURNING id",[id,hash]);
+ if(!rows.length)throw new DomainError("Funcionário não encontrado.",404);
+ res.json({ok:true});
+}));
+app.patch("/api/copies/:id/status",admin,wrap(async(req,res)=>{
+ const id=validUuid(req.params.id),status=String(payload(req).status||"");
+ if(!["available","damaged","lost"].includes(status))throw new DomainError("Situação inválida.");
+ const result=await transactUser(pool,async db=>{
+   const copy=await db.query("SELECT id,status FROM bookshare_v2.copies WHERE id=$1 FOR UPDATE",[id]);
+   if(!copy.rowCount)throw new DomainError("Exemplar não encontrado.",404);
+   const loans=await db.query("SELECT 1 FROM bookshare_v2.loans WHERE copy_id=$1 AND status='active'",[id]);
+   if(loans.rowCount || copy.rows[0].status==="loaned")throw new DomainError("Devolva o empréstimo antes de alterar a situação do exemplar.",409);
+   const updated=await db.query("UPDATE bookshare_v2.copies SET status=$2 WHERE id=$1 RETURNING *",[id,status]);
+   return updated.rows[0];
+ });
+ res.json({item:result});
 }));
 app.post("/api/media",wrap(async(req,res)=>{
  const value=String(payload(req).image||"");

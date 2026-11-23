@@ -29,7 +29,8 @@ function showLanding(){
 function showApp(user){
  state.user=user;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
  $("#hello-name").textContent=user.name.split(" ")[0];
- $("#user-label").textContent=user.name+" · "+(user.role==="admin"?"Administração":"Biblioteca");
+ $("#user-label").textContent=user.name.split(" ")[0]+" · "+(user.role==="admin"?"Admin":"Biblioteca");
+ $(".profile-avatar").textContent=user.name.slice(0,1).toUpperCase();
  $$(".admin-only").forEach(el=>el.hidden=user.role!=="admin");
  navigate("home");
 }
@@ -58,18 +59,20 @@ async function refresh(route=state.route){
   }else if(route==="users"){
    if(state.user?.role!=="admin")return navigate("home");
    const d=await api("/users");state.users=d.items;renderUsers(d.items);
+  }else if(route==="profile"){
+   const d=await api("/me");state.user=d.user;renderProfile(d.user);
   }
  }catch(err){toast(err.message,true);}
 }
 function navigate(route){
- if(!["home","books","students","loans","returns","reports","reservations","users"].includes(route))route="home";
+ if(!["home","books","students","loans","returns","reports","reservations","users","profile"].includes(route))route="home";
  if(route==="users"&&state.user?.role!=="admin")return;
  state.route=route;
  $$(".page").forEach(el=>el.hidden=el.dataset.page!==route);
  $$(".nav-link").forEach(el=>el.classList.toggle("active",el.dataset.route===route));
  $("#sidebar").classList.remove("open");
  $("#menu-toggle").setAttribute("aria-expanded","false");
- document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe"}[route]||"Biblioteca");
+ document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe",profile:"Meu perfil"}[route]||"Biblioteca");
  refresh(route);
 }
 const message = text=>'<p class="empty">'+esc(text)+'</p>';
@@ -86,7 +89,7 @@ function renderBooks(items){
  $("#books-grid").innerHTML=rows.map(x=>{
    const url=x.cover_id?media(x.cover_id):legacyCover(x.cover_url);
    const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
-   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button></div></div></article>';
+   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button><button class="small-button secondary-edit" data-manage-copies="'+esc(x.id)+'">Exemplares</button></div></div></article>';
  }).join("")||message("Ainda não há livros no acervo.");
  $("#books-count").textContent=items.length+" título"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
@@ -132,11 +135,29 @@ function renderReservations(items){
  }));
 }
 function renderUsers(items){
- $("#users-table").innerHTML=table(["Nome","E-mail","Perfil","Status"],items.map(x=>'<tr><td><strong>'+esc(x.name)+'</strong></td><td>'+esc(x.email)+'</td><td>'+esc(x.role==="admin"?"Administrador":"Bibliotecária")+'</td><td>'+chip(x.active?"Ativo":"Desativado",x.active?"":"warn")+'</td></tr>'));
+ const q=($("#users-search")?.value||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+ const filtered=items.filter(x=>(x.name+" "+x.email).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().includes(q));
+ $("#users-count").textContent=filtered.length+" pessoa"+(filtered.length===1?"":"s");
+ $("#users-summary").innerHTML=[
+  ["Pessoas cadastradas",items.length],
+  ["Com acesso ativo",items.filter(x=>x.active).length],
+  ["Administradores ativos",items.filter(x=>x.active&&x.role==="admin").length]
+ ].map(([name,n])=>'<div class="team-kpi"><span>'+esc(name)+'</span><strong>'+n+'</strong></div>').join("");
+ $("#users-table").innerHTML=table(["Funcionário","E-mail","Perfil","Acesso","Ações"],filtered.map(x=>
+  '<tr><td><strong>'+esc(x.name)+'</strong></td><td>'+esc(x.email)+'</td><td>'+esc(x.role==="admin"?"Administrador":"Bibliotecária")+'</td><td>'+chip(x.active?"Ativo":"Desativado",x.active?"":"warn")+'</td>'+
+  '<td><div class="actions"><button class="small-button" data-edit-user="'+esc(x.id)+'">Editar</button><button class="small-button" data-reset-user="'+esc(x.id)+'">Senha</button><button class="small-button '+(x.active?"danger-text":"")+'" data-toggle-user="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button></div></td></tr>'
+ ));
+}
+function renderProfile(user){
+ $("#profile-card").innerHTML='<span class="profile-large-avatar">'+esc(user.name.slice(0,1).toUpperCase())+'</span>'+
+  '<h2>'+esc(user.name)+'</h2><p class="muted">'+esc(user.role==="admin"?"Administrador":"Bibliotecária")+'</p>'+
+  '<div class="profile-data"><span>E-mail</span><strong>'+esc(user.email)+'</strong></div>'+
+  '<div class="profile-data"><span>Perfil de acesso</span><strong>'+esc(user.role==="admin"?"Administração":"Biblioteca")+'</strong></div>'+
+  '<button class="button primary" data-modal="profile">Editar meus dados</button>';
 }
 const field=(label,name,placeholder="",type="text",required=true,value="",wide=false)=>'<label class="'+(wide?"wide":"")+'">'+esc(label)+'<input type="'+esc(type)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'" value="'+esc(value)+'" '+(required?"required":"")+'></label>';
 const selectField=(label,name,items,required=true)=>'<label>'+esc(label)+'<select name="'+esc(name)+'" '+(required?"required":"")+'>'+items.map(([v,text])=>'<option value="'+esc(v)+'">'+esc(text)+'</option>').join("")+'</select></label>';
-const shell=(title,subtitle,fields,submit="Salvar")=>'<p class="eyebrow">BOOKSHARE / CADASTRO</p><h2>'+esc(title)+'</h2><p class="muted">'+esc(subtitle)+'</p><form id="modal-form"><div class="form-grid">'+fields+'</div><div class="form-actions"><button type="button" class="button secondary" data-close>Cancelar</button><button type="submit" class="button primary">'+esc(submit)+'</button></div><p class="error" id="modal-error" role="alert"></p></form>';
+const shell=(title,subtitle,fields,submit="Salvar")=>'<div class="modal-heading"><span class="eyebrow">BIBLIOTECA · ATENDIMENTO</span><h2 id="dialog-heading">'+esc(title)+'</h2><p class="muted">'+esc(subtitle)+'</p></div><form id="modal-form"><div class="form-grid">'+fields+'</div><p class="error" id="modal-error" role="alert"></p><div class="form-actions"><button type="button" class="button secondary" data-close>Cancelar</button><button type="submit" class="button primary">'+esc(submit)+'</button></div></form>';
 const dialog=$("#dialog");
 function openDialog(title,subtitle,fields,onSubmit,submit){
  $("#dialog-content").innerHTML=shell(title,subtitle,fields,submit);
@@ -161,6 +182,65 @@ async function uploadImage(form){
  const image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error("Falha na leitura da foto."));reader.readAsDataURL(file)});
  return (await api("/media",{method:"POST",body:JSON.stringify({image})})).id;
 }
+
+function pickerHtml(kind,label,placeholder){
+ const id="picker-"+kind;
+ return '<div class="entity-picker" data-picker="'+esc(kind)+'"><label for="'+id+'">'+esc(label)+'</label>'+
+  '<div class="picker-input-wrap"><svg class="ico" aria-hidden="true"><use href="#search"/></svg><input id="'+id+'" type="search" name="'+esc(kind)+'_search" placeholder="'+esc(placeholder)+'" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="'+id+'-results"></div>'+
+  '<input type="hidden" name="'+esc(kind)+'_id"><div class="picker-results" id="'+id+'-results" role="listbox" hidden></div>'+
+  '<div class="picker-selected" hidden><span class="picker-selected-icon">✓</span><span class="picker-chosen"></span><button type="button" class="picker-change">Trocar</button></div></div>';
+}
+function bindPicker(form,kind,items,labelFn,descFn,selectedCb){
+ const container=form.querySelector('[data-picker="'+kind+'"]');
+ const search=container.querySelector('input[type="search"]');
+ const value=container.querySelector('input[type="hidden"]');
+ const results=container.querySelector('.picker-results');
+ const selected=container.querySelector('.picker-selected');
+ const chosen=container.querySelector('.picker-chosen');
+ const change=container.querySelector('.picker-change');
+ let current=null;
+ const norm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ function close(){results.hidden=true;search.setAttribute("aria-expanded","false")}
+ function choose(item){
+   current=item;value.value=item.id;search.value=labelFn(item);search.parentElement.hidden=true;
+   chosen.textContent=labelFn(item)+" · "+descFn(item);
+   selected.hidden=false;close();selectedCb?.();
+ }
+ function draw(){
+   results.replaceChildren();
+   if(!search.value.trim()){close();return;}
+   const q=norm(search.value.trim());
+   const matching=items.filter(item=>norm(labelFn(item)+" "+descFn(item)).includes(q)).slice(0,7);
+   for(const item of matching){
+     const row=document.createElement("button");row.type="button";row.className="picker-option";row.setAttribute("role","option");
+     const title=document.createElement("strong");title.textContent=labelFn(item);
+     const desc=document.createElement("small");desc.textContent=descFn(item);
+     row.append(title,desc);row.addEventListener("click",()=>choose(item));results.append(row);
+   }
+   if(!matching.length){
+     const empty=document.createElement("p");empty.className="picker-no-results";empty.textContent="Nenhum resultado. Tente outra busca.";results.append(empty);
+   }
+   results.hidden=false;search.setAttribute("aria-expanded","true");
+ }
+ search.addEventListener("input",()=>{current=null;value.value="";selectedCb?.();draw()});
+ search.addEventListener("focus",draw);
+ search.addEventListener("keydown",event=>{
+   if(event.key==="Escape")close();
+   if(event.key==="ArrowDown"&&!results.hidden){event.preventDefault();results.querySelector("button")?.focus();}
+   if(event.key==="Enter"&&!results.hidden){
+     const first=results.querySelector("button");if(first){event.preventDefault();first.click();}
+   }
+ });
+ results.addEventListener("keydown",event=>{
+   const buttons=[...results.querySelectorAll("button")];const idx=buttons.indexOf(document.activeElement);
+   if(event.key==="ArrowDown"){event.preventDefault();buttons[Math.min(idx+1,buttons.length-1)]?.focus();}
+   if(event.key==="ArrowUp"){event.preventDefault();if(idx===0)search.focus();else buttons[idx-1]?.focus();}
+   if(event.key==="Escape"){close();search.focus();}
+ });
+ change.addEventListener("click",()=>{selected.hidden=true;search.parentElement.hidden=false;search.value="";value.value="";current=null;selectedCb?.();search.focus()});
+ return {choose,clear:()=>change.click(),search,get selected(){return current}};
+}
+
 async function openModal(type,extra){
  if(type==="student"){
    const old=state.students.find(x=>x.id===extra);
@@ -195,57 +275,107 @@ async function openModal(type,extra){
    openDialog("Novo exemplar","Cada cópia física tem um código próprio.",fields,async b=>api("/copies",{method:"POST",body:JSON.stringify(b)}));
    if(extra)$("#modal-form [name=book_id]").value=extra;
  }
+ else if(type==="copies"){
+   const book=state.books.find(x=>x.id===extra);
+   if(!book)return;
+   const all=await getItems("/copies?book_id="+encodeURIComponent(book.id)+"&limit=1000");
+   const labels={available:"Disponível",loaned:"Emprestado",damaged:"Danificado",lost:"Extraviado"};
+   const entries=all.map(c=>{
+     const actions=state.user?.role==="admin" && c.status!=="loaned"?
+       '<div class="copy-actions">'+(c.status!=="available"?'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="available" data-book="'+esc(book.id)+'">Disponibilizar</button>':'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="damaged" data-book="'+esc(book.id)+'">Marcar danificado</button>')+
+       (c.status!=="lost"?'<button class="small-button danger-text" data-copy-action="'+esc(c.id)+'" data-status="lost" data-book="'+esc(book.id)+'">Extraviado</button>':'')+'</div>':'';
+     return '<div class="copy-line"><div><strong>'+esc(c.code)+'</strong><small>'+esc(labels[c.status]||c.status)+'</small></div>'+actions+'</div>';
+   }).join("")||message("Ainda não há exemplares deste livro.");
+   $("#dialog-content").innerHTML='<div class="modal-heading"><span class="eyebrow">ACERVO · EXEMPLARES</span><h2 id="dialog-heading">'+esc(book.title)+'</h2><p class="muted">Acompanhe cada exemplar físico.</p></div>'+
+      '<div class="copy-list">'+entries+'</div><div class="form-actions"><button class="button secondary" type="button" data-close>Fechar</button><button class="button primary" type="button" data-add-copy="'+esc(book.id)+'">+ Adicionar exemplar</button></div>';
+   dialog.showModal();
+  }
  else if(type==="loan"){
    const [students,copies]=await Promise.all([getItems("/students?limit=1000"),getItems("/copies?limit=1000")]);
    const activeStudents=students.filter(x=>x.active);
    const ready=copies.filter(x=>x.status==="available");
-   if(!activeStudents.length||!ready.length)return toast("Cadastre alunos e exemplares disponíveis antes de emprestar.",true);
-   const due=new Date();due.setDate(due.getDate()+14);
-   const date=due.toISOString().slice(0,10);
-   const searchSelect=(label,searchName,selectName,placeholder)=>'<label class="wide">'+esc(label)+'<input type="search" name="'+searchName+'" placeholder="'+esc(placeholder)+'" autocomplete="off"></label><label class="wide">Escolha na lista<select name="'+selectName+'" required><option value="">Selecione</option></select></label>';
-   const fields=searchSelect("1. Buscar aluno","student_search","student_id","Digite nome ou matrícula")
-      +searchSelect("2. Buscar livro","copy_search","copy_id","Digite título ou código")
-      +field("3. Data prevista para devolução","due_date","","date",true,date,true);
-   openDialog("Fazer empréstimo","Procure o aluno e o livro. Depois confirme a data.",fields,async b=>{
-     if(!b.student_id||!b.copy_id)throw Error("É necessário selecionar o aluno e o livro.");
+   if(!activeStudents.length || !ready.length)return toast("É necessário ter um aluno ativo e um exemplar disponível.",true);
+   const date=new Date();date.setDate(date.getDate()+14);
+   const due=date.toISOString().slice(0,10);
+   const fields='<div class="loan-ui wide"><div class="loan-two">'+
+      pickerHtml("student","1  Quem vai levar?","Digite o nome ou matrícula do aluno")+
+      pickerHtml("copy","2  Qual livro?","Digite o título ou código do exemplar")+
+      '</div><div class="loan-bottom">'+field("3  Devolver até","due_date","","date",true,due,true)+
+      '<div class="loan-summary" aria-live="polite"><strong>Confira antes de registrar</strong><span id="loan-check-name">Selecione um aluno</span><span id="loan-check-book">Selecione um livro</span></div></div></div>';
+   openDialog("Novo empréstimo","Encontre o aluno, escolha o livro e confirme. Só isso.",fields,async b=>{
+     if(!b.student_id || !b.copy_id)throw Error("Selecione um aluno e um livro nas sugestões.");
      await api("/loans",{method:"POST",body:JSON.stringify({student_id:b.student_id,copy_id:b.copy_id,due_date:b.due_date})});
    },"Confirmar empréstimo");
+   dialog.classList.add("dialog-loan");
+   dialog.addEventListener("close",()=>dialog.classList.remove("dialog-loan"),{once:true});
    const form=$("#modal-form");
-   const bind=(searchName,selectName,items,labelFn)=>{
-     const input=form.querySelector('[name="'+searchName+'"]');
-     const select=form.querySelector('[name="'+selectName+'"]');
-     const normalize=v=>v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-     const update=()=>{
-       const q=normalize(input.value.trim());
-       const previous=select.value;
-       const list=items.filter(x=>normalize(labelFn(x)).includes(q)).slice(0,40);
-       select.replaceChildren(new Option(list.length?"Selecione uma opção":"Nenhum resultado encontrado",""));
-       for(const item of list)select.add(new Option(labelFn(item),item.id));
-       if(list.some(x=>x.id===previous))select.value=previous;
-     };
-     input.addEventListener("input",update);update();
-     return {input,select,update};
+   let student,copy;
+   const update=()=>{
+     $("#loan-check-name").textContent=student?.selected?"Aluno: "+student.selected.name:"Selecione um aluno";
+     $("#loan-check-book").textContent=copy?.selected?"Livro: "+copy.selected.title+" ("+copy.selected.code+")":"Selecione um livro";
    };
-   const a=bind("student_search","student_id",activeStudents,x=>x.name+" · "+x.registration);
-   const b=bind("copy_search","copy_id",ready,x=>x.title+" · "+x.code);
-   if(extra?.student_id){const selected=activeStudents.find(x=>x.id===extra.student_id);if(selected){a.input.value=selected.name;a.update();a.select.value=selected.id;}}
-   if(extra?.book_id){const selected=ready.find(x=>x.book_id===extra.book_id);if(selected){b.input.value=selected.title;b.update();b.select.value=selected.id;}}
+   student=bindPicker(form,"student",activeStudents,x=>x.name,x=>x.registration,update);
+   copy=bindPicker(form,"copy",ready,x=>x.title,x=>x.code,update);
+   if(extra?.student_id){const x=activeStudents.find(x=>x.id===extra.student_id);if(x)student.choose(x);}
+   if(extra?.book_id){const x=ready.find(x=>x.book_id===extra.book_id);if(x)copy.choose(x);}
+   if(!student.selected)student.search.focus();
   }
  else if(type==="reservation"){
    const [students,books]=await Promise.all([getItems("/students?limit=1000"),getItems("/books?limit=1000")]);
-   if(!students.length||!books.length)return toast("Cadastre alunos e livros antes de reservar.",true);
-   const fields=selectField("Aluno","student_id",students.filter(x=>x.active).map(x=>[x.id,x.name]))+selectField("Livro","book_id",selectOption(books));
-   openDialog("Nova reserva","Registre a solicitação de um livro.",fields,async b=>api("/reservations",{method:"POST",body:JSON.stringify(b)}));
- }
+   const active=students.filter(x=>x.active);
+   if(!active.length||!books.length)return toast("Cadastre alunos e livros antes de reservar.",true);
+   const fields='<div class="loan-ui wide"><div class="loan-two">'+
+       pickerHtml("student","1  Para qual aluno?","Busque pelo nome ou matrícula")+
+       pickerHtml("book","2  Qual livro?","Busque pelo título ou autor")+
+       '</div></div>';
+   openDialog("Nova reserva","Encontre o aluno e o livro que ele deseja reservar.",fields,async b=>{
+     if(!b.student_id||!b.book_id)throw Error("Selecione um aluno e um livro nas sugestões.");
+     await api("/reservations",{method:"POST",body:JSON.stringify({student_id:b.student_id,book_id:b.book_id})});
+   },"Criar reserva");
+   dialog.classList.add("dialog-loan");
+   dialog.addEventListener("close",()=>dialog.classList.remove("dialog-loan"),{once:true});
+   const form=$("#modal-form");
+   bindPicker(form,"student",active,x=>x.name,x=>x.registration);
+   bindPicker(form,"book",books,x=>x.title,x=>x.author);
+  }
  else if(type==="password"){
    const fields=field("Senha atual","current_password","Senha atual","password",true,"",true)+field("Nova senha (mínimo 12 caracteres)","new_password","Nova senha","password",true,"",true);
    openDialog("Alterar minha senha","Escolha uma senha forte que você não usa em outros serviços.",fields,async b=>api("/me/password",{method:"POST",body:JSON.stringify(b)}),"Atualizar senha");
  }
+ else if(type==="profile"){
+   const old=state.user;
+   const fields=field("Nome completo","name","Seu nome","text",true,old?.name||"",true)+field("E-mail","email","Seu e-mail","email",true,old?.email||"",true);
+   openDialog("Editar meu perfil","Atualize seus dados pessoais.",fields,async b=>{
+     const d=await api("/me",{method:"PATCH",body:JSON.stringify({name:b.name,email:b.email})});
+     state.user=d.user;
+     $("#user-label").textContent=d.user.name.split(" ")[0]+" · "+(d.user.role==="admin"?"Admin":"Biblioteca");
+     $(".profile-avatar").textContent=d.user.name.slice(0,1).toUpperCase();
+   },"Salvar meus dados");
+  }
  else if(type==="user"){
    if(state.user?.role!=="admin")return;
-   const fields=field("Nome","name","Nome completo","text",true,"",true)+field("E-mail","email","email@escola.com","email",true,"",true)+field("Senha (12+ caracteres)","password","Senha inicial","password",true,"",true)+selectField("Perfil","role",[["librarian","Bibliotecária"],["admin","Administrador"]]);
-   openDialog("Adicionar pessoa","Defina quem terá acesso à biblioteca.",fields,async b=>api("/users",{method:"POST",body:JSON.stringify(b)}));
- }
+   const old=state.users.find(x=>x.id===extra);
+   const fields=field("Nome","name","Nome completo","text",true,old?.name||"",true)
+     +field("E-mail","email","email@escola.com","email",true,old?.email||"",true)
+     +selectField("Perfil de acesso","role",[["librarian","Bibliotecária"],["admin","Administrador"]])
+     +(old?selectField("Situação da conta","active",[["true","Ativo"],["false","Desativado"]]):
+       field("Senha inicial (12 ou mais caracteres)","password","Crie uma senha forte","password",true,"",true));
+   openDialog(old?"Editar funcionário":"Cadastrar funcionário",old?"Altere os dados e as permissões deste acesso.":"Cadastre alguém que vai trabalhar na biblioteca.",fields,async b=>{
+     await api(old?"/users/"+old.id:"/users",{method:old?"PATCH":"POST",body:JSON.stringify(old?
+       {name:b.name,email:b.email,role:b.role,active:b.active==="true"}:
+       {name:b.name,email:b.email,role:b.role,password:b.password})});
+   },old?"Salvar funcionário":"Cadastrar funcionário");
+   $("#modal-form [name=role]").value=old?.role||"librarian";
+   if(old)$("#modal-form [name=active]").value=String(old.active);
+  }
+ else if(type==="reset-user"){
+   if(state.user?.role!=="admin")return;
+   const old=state.users.find(x=>x.id===extra);if(!old)return;
+   const fields=field("Nova senha (mínimo 12 caracteres)","password","Crie uma senha segura","password",true,"",true);
+   openDialog("Redefinir senha","Defina uma nova senha para "+old.name+".",fields,async b=>{
+     await api("/users/"+old.id+"/reset-password",{method:"POST",body:JSON.stringify({password:b.password})});
+   },"Salvar nova senha");
+  }
  else if(type==="return"){
    const row=state.loans.find(x=>x.id===extra);
    if(!row)return;
@@ -269,10 +399,36 @@ document.addEventListener("click",async e=>{
  if(el.dataset.action==="back-landing"){showLanding();return;}
  if(el.dataset.action==="print-reports"){window.print();return;}
  if(el.dataset.modal)return openModal(el.dataset.modal);
- if(el.dataset.close){dialog.close();return;}
- if(el.dataset.addCopy)return openModal("copy",el.dataset.addCopy);
+ if(el.hasAttribute("data-close")){dialog.close();return;}
+ if(el.dataset.addCopy){if(dialog.open)dialog.close();return openModal("copy",el.dataset.addCopy);}
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
   if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
+ if(el.dataset.manageCopies)return openModal("copies",el.dataset.manageCopies);
+ if(el.dataset.editUser)return openModal("user",el.dataset.editUser);
+ if(el.dataset.resetUser)return openModal("reset-user",el.dataset.resetUser);
+ if(el.dataset.toggleUser){
+   const current=state.users.find(x=>x.id===el.dataset.toggleUser);
+   if(!current)return;
+   const action=current.active?"desativar":"ativar";
+   if(!confirm("Deseja "+action+" o acesso de "+current.name+"?"))return;
+   el.disabled=true;
+   try{
+     await api("/users/"+current.id,{method:"PATCH",body:JSON.stringify({name:current.name,email:current.email,role:current.role,active:!current.active})});
+     toast("Acesso atualizado.");await refresh("users");
+   }catch(error){toast(error.message,true)}finally{el.disabled=false;}
+   return;
+ }
+ if(el.dataset.copyAction){
+   const id=el.dataset.copyAction,book=el.dataset.book,status=el.dataset.status;
+   if(!confirm("Atualizar a situação deste exemplar?"))return;
+   el.disabled=true;
+   try{
+     await api("/copies/"+id+"/status",{method:"PATCH",body:JSON.stringify({status})});
+     dialog.close();await refresh("books");await openModal("copies",book);toast("Exemplar atualizado.");
+   }catch(error){toast(error.message,true)}finally{el.disabled=false;}
+   return;
+ }
+
  if(el.dataset.return)return openModal("return",el.dataset.return);
  if(el.dataset.renew)return openModal("renew",el.dataset.renew);
  if(el.dataset.pickup){const reservation=state.reservations.find(x=>x.id===el.dataset.pickup);if(reservation)await openModal("loan",{student_id:reservation.student_id,book_id:reservation.book_id});return;}
@@ -287,6 +443,7 @@ let timer;
 ["books","students","returns"].forEach(type=>{
  $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else if(type==="students")state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
 });
+$("#users-search").addEventListener("input",()=>renderUsers(state.users));
 $("#menu-toggle").onclick=()=>{
  const opened=$("#sidebar").classList.toggle("open");
  $("#menu-toggle").setAttribute("aria-expanded",String(opened));

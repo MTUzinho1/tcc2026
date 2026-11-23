@@ -139,6 +139,28 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     ok(await request("GET","/users",undefined,staffLogin.cookie),403);
     ok(await request("GET","/dashboard",undefined,staffLogin.cookie),200);
   });
+  await t.test("administrador pode gerenciar equipe, perfil e exemplares",async()=>{
+    const users=await request("GET","/users",undefined,cookie);ok(users,200);
+    const employee=users.body.items.find(x=>x.email==="staff.qa@bookshare.test");
+    const administrator=users.body.items.find(x=>x.email===ADMIN_EMAIL);
+    assert.ok(employee?.id);
+    assert.ok(administrator?.id);
+    ok(await request("PATCH","/users/"+administrator.id,{name:"Admin QA",email:ADMIN_EMAIL,role:"admin",active:false},cookie),409);
+    const modified=await request("PATCH","/users/"+employee.id,{name:"Bibliotecária de testes",email:employee.email,role:"librarian",active:false},cookie);
+    ok(modified,200);assert.equal(modified.body.item.active,false);
+    ok(await request("POST","/auth/login",{email:employee.email,password:"StaffStrong2026!"}),401);
+    ok(await request("PATCH","/users/"+employee.id,{name:"Bibliotecária de testes",email:employee.email,role:"librarian",active:true},cookie),200);
+    ok(await request("POST","/users/"+employee.id+"/reset-password",{password:"NovaSenhaFuncionaria_2026!"},cookie),200);
+    ok(await request("POST","/auth/login",{email:employee.email,password:"StaffStrong2026!"}),401);
+    const staff=await request("POST","/auth/login",{email:employee.email,password:"NovaSenhaFuncionaria_2026!"});
+    ok(staff,200);
+    ok(await request("PATCH","/users/"+employee.id,{name:"Hacker",email:employee.email,role:"admin",active:true},staff.cookie),403);
+    ok(await request("PATCH","/copies/"+copy1+"/status",{status:"available"},staff.cookie),403);
+    const corrected=await request("PATCH","/copies/"+copy1+"/status",{status:"available"},cookie);
+    ok(corrected,200);assert.equal(corrected.body.item.status,"available");
+    const profile=await request("PATCH","/me",{name:"Admin QA Revisado",email:ADMIN_EMAIL},cookie);
+    ok(profile,200);assert.equal(profile.body.user.name,"Admin QA Revisado");
+  });
   await t.test("dashboard traz dados persistidos",async()=>{
     const dash=await request("GET","/dashboard",undefined,cookie);
     ok(dash,200);
@@ -186,12 +208,20 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('#modal-form button[type=submit]').click();
     await page.locator("#dialog").waitFor({state:"hidden"});
     await page.screenshot({path:"artifacts/05-livros-desktop.png",fullPage:true});
+    await page.locator(".book-card [data-manage-copies]").first().click();
+    await page.locator(".copy-line").first().waitFor();
+    await page.screenshot({path:"artifacts/05a-gerenciar-exemplares.png",fullPage:true});
+    await page.locator("#dialog [data-close]").click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
     await page.locator('[data-route="loans"]').click();
     await page.locator('[data-page="loans"] [data-modal="loan"]').click();
-    await page.locator('#modal-form [name=student_search]').fill("Estudante Alpha QA");
-    await page.locator('#modal-form [name=student_id]').selectOption(student1);
-    await page.locator('#modal-form [name=copy_search]').fill("O livro de teste");
-    await page.locator('#modal-form [name=copy_id]').selectOption(copy2);
+    await page.locator('#picker-student').fill("Estudante Alpha QA");
+    await page.locator('[data-picker="student"] .picker-option').first().click();
+    assert.equal(await page.locator('#modal-form [name=student_id]').inputValue(),student1);
+    await page.locator('#picker-copy').fill("QA-COPY-002");
+    await page.locator('[data-picker="copy"] .picker-option').first().click();
+    assert.equal(await page.locator('#modal-form [name=copy_id]').inputValue(),copy2);
+    await page.screenshot({path:"artifacts/06a-formulario-emprestimo.png",fullPage:true});
     await page.locator('#modal-form button[type=submit]').click();
     await page.locator('[data-page="loans"] [data-return]').first().waitFor();
     await page.screenshot({path:"artifacts/06-emprestimos-desktop.png",fullPage:true});
@@ -206,6 +236,24 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('[data-route="reports"]').click();
     await page.locator(".report-stat").first().waitFor();
     await page.screenshot({path:"artifacts/08-relatorios-desktop.png",fullPage:true});
+    await page.locator('#sidebar [data-route="users"]').click();
+    await page.locator('#users-table tbody tr').first().waitFor();
+    await page.screenshot({path:"artifacts/08a-equipe-admin-desktop.png",fullPage:true});
+    await page.locator('#users-table [data-edit-user]').last().click();
+    await page.locator('#modal-form [name=name]').fill("Atendente de testes");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
+    await page.getByText("Atendente de testes",{exact:true}).waitFor();
+    await page.locator('#users-table [data-reset-user]').last().click();
+    await page.locator('#modal-form [name=password]').fill("SenhaUI_Forte_2026!");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
+    await page.locator('#sidebar [data-route="profile"]').click();
+    await page.locator('#profile-card .button').click();
+    await page.locator('#modal-form [name=name]').fill("Administrador de testes");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator("#dialog").waitFor({state:"hidden"});
+    await page.screenshot({path:"artifacts/08b-meu-perfil.png",fullPage:true});
     assert.deepEqual(errors,[]);
     const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     mobile.on("pageerror",err=>errors.push(err.message));
@@ -224,6 +272,18 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await mobile.locator('[data-page="books"]:not([hidden])').waitFor();
     await mobile.locator(".book-card").first().waitFor();
     await mobile.screenshot({path:"artifacts/12-livros-mobile.png",fullPage:true});
+    await mobile.locator("#menu-toggle").click();
+    await mobile.locator('#sidebar [data-route="loans"]').click();
+    await mobile.locator('[data-page="loans"] [data-modal="loan"]').click();
+    await mobile.locator("#dialog[open]").waitFor();
+    await mobile.screenshot({path:"artifacts/13-emprestimo-mobile.png",fullPage:true});
+    const modalFits=await mobile.locator("#dialog").evaluate(el=>{
+      const rect=el.getBoundingClientRect();
+      return rect.left>=0 && rect.right<=window.innerWidth+1 &&
+        rect.top>=0 && rect.bottom<=window.innerHeight+1;
+    });
+    assert.ok(modalFits,"O formulário de empréstimo não cabe na tela do celular");
+    await mobile.locator("#dialog-close").click();
     const noHeaderCollision=await mobile.evaluate(()=>{
       const brand=document.querySelector(".top-brand").getBoundingClientRect();
       const logout=document.querySelector(".top-right .text-button").getBoundingClientRect();
@@ -234,7 +294,7 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     const card=await mobile.locator(".book-card").first().evaluate(el=>{
       const cover=el.querySelector(".book-cover").getBoundingClientRect();
       const body=el.querySelector(".book-body").getBoundingClientRect();
-      return cover.bottom<=body.top+1;
+      return cover.bottom<=body.top+1 || cover.right<=body.left+1;
     });
     assert.ok(card,"Capa do livro invade informações no celular");
     assert.deepEqual(errors,[]);
