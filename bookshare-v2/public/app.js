@@ -470,6 +470,43 @@ document.addEventListener("click",async e=>{
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
   if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
  if(el.dataset.manageCopies)return openModal("copies",el.dataset.manageCopies);
+ if(el.dataset.selectSchool){
+  state.schoolId=el.dataset.selectSchool;
+  $("#school-selector").value=state.schoolId;
+  state.bookVisible=24;state.studentVisible=40;
+  navigate("home");toast("Escola selecionada.");
+  return;
+ }
+ if(el.dataset.editSchool)return openModal("school",el.dataset.editSchool);
+ if(el.dataset.deleteSchool){
+  const current=state.schools.find(x=>x.id===el.dataset.deleteSchool);
+  if(current)return openModal("delete",{kind:"school",id:current.id,label:current.name});
+ }
+ if(el.dataset.toggleSchool){
+  const current=state.schools.find(x=>x.id===el.dataset.toggleSchool);
+  if(!current)return;
+  if(!confirm((current.active?"Desativar":"Ativar")+" a escola "+current.name+"?"))return;
+  el.disabled=true;
+  try{
+   await api("/schools/"+current.id,{method:"PATCH",body:JSON.stringify({...current,active:!current.active})});
+   await loadSchools();renderSchools(state.schools);toast("Situação da escola atualizada.");
+  }catch(error){toast(error.message,true)}finally{el.disabled=false}
+  return;
+ }
+ if(el.dataset.deleteUser){
+  const current=state.users.find(x=>x.id===el.dataset.deleteUser);
+  if(current)return openModal("delete",{kind:"user",id:current.id,label:current.name});
+ }
+ if(el.dataset.deleteStudent){
+  const current=state.students.find(x=>x.id===el.dataset.deleteStudent);
+  if(current)return openModal("delete",{kind:"student",id:current.id,label:current.name});
+ }
+ if(el.dataset.deleteBook){
+  const current=state.books.find(x=>x.id===el.dataset.deleteBook);
+  if(current)return openModal("delete",{kind:"book",id:current.id,label:current.title});
+ }
+ if(el.dataset.deleteCopy)return openModal("delete",{kind:"copy",id:el.dataset.deleteCopy,label:"exemplar"});
+
  if(el.dataset.editUser)return openModal("user",el.dataset.editUser);
  if(el.dataset.resetUser)return openModal("reset-user",el.dataset.resetUser);
  if(el.dataset.toggleUser){
@@ -510,6 +547,17 @@ let timer;
  $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else if(type==="students")state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
 });
 $("#users-search").addEventListener("input",()=>renderUsers(state.users));
+$("#school-selector").addEventListener("change",event=>{
+ state.schoolId=event.target.value;
+ state.bookVisible=24;state.studentVisible=40;
+ navigate("home");
+});
+document.addEventListener("error",event=>{
+ if(event.target instanceof HTMLImageElement && !event.target.dataset.fallback){
+   event.target.dataset.fallback="1";
+   event.target.src=event.target.closest(".book-cover")?"/assets/book-cover.svg":"/assets/student-avatar.svg";
+ }
+},true);
 $("#menu-toggle").onclick=()=>{
  const opened=$("#sidebar").classList.toggle("open");
  $("#menu-toggle").setAttribute("aria-expanded",String(opened));
