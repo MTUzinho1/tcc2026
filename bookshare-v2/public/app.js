@@ -307,19 +307,60 @@ async function openModal(type,extra){
   }
  else if(type==="reservation"){
    const [students,books]=await Promise.all([getItems("/students?limit=1000"),getItems("/books?limit=1000")]);
-   if(!students.length||!books.length)return toast("Cadastre alunos e livros antes de reservar.",true);
-   const fields=selectField("Aluno","student_id",students.filter(x=>x.active).map(x=>[x.id,x.name]))+selectField("Livro","book_id",selectOption(books));
-   openDialog("Nova reserva","Registre a solicitação de um livro.",fields,async b=>api("/reservations",{method:"POST",body:JSON.stringify(b)}));
- }
+   const active=students.filter(x=>x.active);
+   if(!active.length||!books.length)return toast("Cadastre alunos e livros antes de reservar.",true);
+   const fields='<div class="loan-ui wide"><div class="loan-two">'+
+       pickerHtml("student","1  Para qual aluno?","Busque pelo nome ou matrícula")+
+       pickerHtml("book","2  Qual livro?","Busque pelo título ou autor")+
+       '</div></div>';
+   openDialog("Nova reserva","Encontre o aluno e o livro que ele deseja reservar.",fields,async b=>{
+     if(!b.student_id||!b.book_id)throw Error("Selecione um aluno e um livro nas sugestões.");
+     await api("/reservations",{method:"POST",body:JSON.stringify({student_id:b.student_id,book_id:b.book_id})});
+   },"Criar reserva");
+   dialog.classList.add("dialog-loan");
+   dialog.addEventListener("close",()=>dialog.classList.remove("dialog-loan"),{once:true});
+   const form=$("#modal-form");
+   bindPicker(form,"student",active,x=>x.name,x=>x.registration);
+   bindPicker(form,"book",books,x=>x.title,x=>x.author);
+  }
  else if(type==="password"){
    const fields=field("Senha atual","current_password","Senha atual","password",true,"",true)+field("Nova senha (mínimo 12 caracteres)","new_password","Nova senha","password",true,"",true);
    openDialog("Alterar minha senha","Escolha uma senha forte que você não usa em outros serviços.",fields,async b=>api("/me/password",{method:"POST",body:JSON.stringify(b)}),"Atualizar senha");
  }
+ else if(type==="profile"){
+   const old=state.user;
+   const fields=field("Nome completo","name","Seu nome","text",true,old?.name||"",true)+field("E-mail","email","Seu e-mail","email",true,old?.email||"",true);
+   openDialog("Editar meu perfil","Atualize seus dados pessoais.",fields,async b=>{
+     const d=await api("/me",{method:"PATCH",body:JSON.stringify({name:b.name,email:b.email})});
+     state.user=d.user;
+     $("#user-label").textContent=d.user.name.split(" ")[0]+" · "+(d.user.role==="admin"?"Admin":"Biblioteca");
+     $(".profile-avatar").textContent=d.user.name.slice(0,1).toUpperCase();
+   },"Salvar meus dados");
+  }
  else if(type==="user"){
    if(state.user?.role!=="admin")return;
-   const fields=field("Nome","name","Nome completo","text",true,"",true)+field("E-mail","email","email@escola.com","email",true,"",true)+field("Senha (12+ caracteres)","password","Senha inicial","password",true,"",true)+selectField("Perfil","role",[["librarian","Bibliotecária"],["admin","Administrador"]]);
-   openDialog("Adicionar pessoa","Defina quem terá acesso à biblioteca.",fields,async b=>api("/users",{method:"POST",body:JSON.stringify(b)}));
- }
+   const old=state.users.find(x=>x.id===extra);
+   const fields=field("Nome","name","Nome completo","text",true,old?.name||"",true)
+     +field("E-mail","email","email@escola.com","email",true,old?.email||"",true)
+     +selectField("Perfil de acesso","role",[["librarian","Bibliotecária"],["admin","Administrador"]])
+     +(old?selectField("Situação da conta","active",[["true","Ativo"],["false","Desativado"]]):
+       field("Senha inicial (12 ou mais caracteres)","password","Crie uma senha forte","password",true,"",true));
+   openDialog(old?"Editar funcionário":"Cadastrar funcionário",old?"Altere os dados e as permissões deste acesso.":"Cadastre alguém que vai trabalhar na biblioteca.",fields,async b=>{
+     await api(old?"/users/"+old.id:"/users",{method:old?"PATCH":"POST",body:JSON.stringify(old?
+       {name:b.name,email:b.email,role:b.role,active:b.active==="true"}:
+       {name:b.name,email:b.email,role:b.role,password:b.password})});
+   },old?"Salvar funcionário":"Cadastrar funcionário");
+   $("#modal-form [name=role]").value=old?.role||"librarian";
+   if(old)$("#modal-form [name=active]").value=String(old.active);
+  }
+ else if(type==="reset-user"){
+   if(state.user?.role!=="admin")return;
+   const old=state.users.find(x=>x.id===extra);if(!old)return;
+   const fields=field("Nova senha (mínimo 12 caracteres)","password","Crie uma senha segura","password",true,"",true);
+   openDialog("Redefinir senha","Defina uma nova senha para "+old.name+".",fields,async b=>{
+     await api("/users/"+old.id+"/reset-password",{method:"POST",body:JSON.stringify({password:b.password})});
+   },"Salvar nova senha");
+  }
  else if(type==="return"){
    const row=state.loans.find(x=>x.id===extra);
    if(!row)return;
