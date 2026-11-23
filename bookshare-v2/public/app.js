@@ -110,6 +110,20 @@ function renderLoans(items){
    return '<tr><td><strong>'+esc(x.book)+'</strong><br><span class="muted small">'+esc(x.code)+'</span></td><td>'+esc(x.student)+'</td><td>'+fmt(x.due_date)+'</td><td>'+chip(x.status==="active"?"Em andamento":"Devolvido",x.status==="active"?"warn":"")+'</td><td>'+actions+'</td></tr>';
  }));
 }
+function renderReturns(items){
+ $("#returns-table").innerHTML=table(["Livro / exemplar","Aluno","Data prevista","Ação"],items.map(x=>
+  '<tr><td><strong>'+esc(x.book)+'</strong><br><span class="muted small">'+esc(x.code)+'</span></td><td>'+esc(x.student)+'</td><td>'+fmt(x.due_date)+'</td><td><button class="small-button" data-return="'+esc(x.id)+'">Devolver livro</button></td></tr>'
+ ));
+}
+function renderReports(data){
+ const m=data.metrics||{}, popular=data.popular||[], monthly=data.monthly||[];
+ const cards=[["Alunos ativos",m.students],["Livros cadastrados",m.books],["Exemplares disponíveis",m.available],["Empréstimos em andamento",m.active_loans],["Em atraso",m.overdue],["Devoluções registradas",m.returned]];
+ const summary='<div class="report-grid">'+cards.map(([name,n])=>'<div class="report-stat"><strong>'+esc(n??0)+'</strong><span>'+esc(name)+'</span></div>').join("")+'</div>';
+ const max=Math.max(1,...monthly.map(x=>Number(x.total)||0));
+ const chart=monthly.map(x=>'<div class="item-line"><div style="flex:1"><strong>'+esc(x.month)+'</strong><div class="report-bar"><span style="width:'+Math.round((Number(x.total)||0)/max*100)+'%"></span></div></div><b>'+esc(x.total)+'</b></div>').join("")||message("Nenhum empréstimo registrado.");
+ const top=popular.map((x,i)=>'<div class="item-line"><div><strong>'+(i+1)+'. '+esc(x.title)+'</strong><small>'+esc(x.author)+'</small></div><span class="pill">'+esc(x.total)+' empréstimos</span></div>').join("")||message("Sem empréstimos suficientes para listar livros.");
+ $("#report-content").innerHTML=summary+'<div class="two-columns report-list"><article class="surface"><h2>Empréstimos por mês</h2>'+chart+'</article><article class="surface"><h2>Livros mais emprestados</h2>'+top+'</article></div>';
+}
 function renderReservations(items){
  $("#reservations-table").innerHTML=table(["Livro","Aluno","Solicitação","Situação","Ações"],items.map(x=>{
  const words={waiting:"Aguardando",ready:"Disponível",completed:"Concluída",cancelled:"Cancelada"};
