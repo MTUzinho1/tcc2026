@@ -1,24 +1,43 @@
 "use strict";
 const $ = (q,root=document)=>root.querySelector(q);
 const $$ = (q,root=document)=>[...root.querySelectorAll(q)];
-const state={user:null,route:"home",loanFilter:"active",bookVisible:24,studentVisible:40,students:[],books:[],copies:[],loans:[],reservations:[],users:[]};
+const state={user:null,schoolId:null,schools:[],route:"home",loanFilter:"active",bookVisible:24,studentVisible:40,students:[],books:[],copies:[],loans:[],reservations:[],users:[]};
 const plain = x=>String(x??"");
 const esc = x=>plain(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = x=> x ? new Date(plain(x).length===10 ? x+"T12:00:00" : x).toLocaleDateString("pt-BR"):"—";
-const media = id=> id ? "/api/media/"+encodeURIComponent(id) : null;
+const media = id=> id ? "/api/media/"+encodeURIComponent(id)+"?school_id="+encodeURIComponent(state.schoolId||"") : null;
+const cover = id=>"/api/books/"+encodeURIComponent(id)+"/cover?school_id="+encodeURIComponent(state.schoolId||"");
+const portrait = id=>"/api/students/"+encodeURIComponent(id)+"/avatar?school_id="+encodeURIComponent(state.schoolId||"");
 const legacyCover = raw=>{try{const url=new URL(raw);return url.protocol==="https:" && ["books.google.com","books.googleusercontent.com","covers.openlibrary.org","images-na.ssl-images-amazon.com","m.media-amazon.com"].includes(url.hostname)?url.href:null;}catch{return null;}};
 const toast=(message,bad=false)=>{
  const el=$("#toast");el.textContent=message;el.className="shown"+(bad?" danger":"");
  clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className="",4800);
 };
 async function api(path,options={}){
+ const {headers={},...rest}=options;
  let response;
- try{response=await fetch("/api"+path,{credentials:"same-origin",headers:{"Content-Type":"application/json",...(options.headers||{})},...options});}
+ try{response=await fetch("/api"+path,{credentials:"same-origin",...rest,
+   headers:{"Content-Type":"application/json",...(state.schoolId?{"x-school-id":state.schoolId}:{}),...headers}});}
  catch{throw Error("Sem conexão com o servidor. Tente novamente.");}
  let data;try{data=await response.json();}catch{throw Error("O servidor respondeu em formato inesperado.");}
  if(response.status===401 && !path.includes("/auth/login")){showLogin();throw Error("Sessão expirada. Entre novamente.");}
  if(!response.ok)throw Error(data.error||"Não foi possível concluir a operação.");
  return data;
+}
+async function loadSchools(){
+ const data=await api("/schools");
+ state.schools=data.items||[];
+ const select=$("#school-selector"),name=$("#school-context-name");
+ select.hidden=state.user?.role!=="admin";name.hidden=state.user?.role==="admin";
+ if(state.user?.role==="admin"){
+   select.replaceChildren();
+   for(const school of state.schools){
+     const option=new Option(school.name+(school.active?"":" · desativada"),school.id);
+     select.add(option);
+   }
+   if(!state.schools.some(x=>x.id===state.schoolId))state.schoolId=state.schools.find(x=>x.active)?.id||state.schools[0]?.id||state.user.school_id;
+   select.value=state.schoolId;
+ }else name.textContent=state.user?.school_name||state.schools[0]?.name||"Escola";
 }
 function showLogin(){
  state.user=null;$("#landing").hidden=true;$("#workspace").hidden=true;$("#login").hidden=false;window.scrollTo(0,0);
@@ -27,7 +46,8 @@ function showLanding(){
  state.user=null;$("#workspace").hidden=true;$("#login").hidden=true;$("#landing").hidden=false;window.scrollTo(0,0);
 }
 function showApp(user){
- state.user=user;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
+ state.user=user;state.schoolId=user.school_id;$("#landing").hidden=true;$("#login").hidden=true;$("#workspace").hidden=false;
+ loadSchools().catch(e=>toast(e.message,true));
  $("#hello-name").textContent=user.name.split(" ")[0];
  $("#user-label").textContent=user.name.split(" ")[0]+" · "+(user.role==="admin"?"Admin":"Biblioteca");
  $(".profile-avatar").textContent=user.name.slice(0,1).toUpperCase();
@@ -61,18 +81,21 @@ async function refresh(route=state.route){
    const d=await api("/users");state.users=d.items;renderUsers(d.items);
   }else if(route==="profile"){
    const d=await api("/me");state.user=d.user;renderProfile(d.user);
+  }else if(route==="schools"){
+   if(state.user?.role!=="admin")return navigate("home");
+   await loadSchools();renderSchools(state.schools);
   }
  }catch(err){toast(err.message,true);}
 }
 function navigate(route){
- if(!["home","books","students","loans","returns","reports","reservations","users","profile"].includes(route))route="home";
- if(route==="users"&&state.user?.role!=="admin")return;
+ if(!["home","books","students","loans","returns","reports","reservations","users","profile","schools"].includes(route))route="home";
+ if(["users","schools"].includes(route)&&state.user?.role!=="admin")return;
  state.route=route;
  $$(".page").forEach(el=>el.hidden=el.dataset.page!==route);
  $$(".nav-link").forEach(el=>el.classList.toggle("active",el.dataset.route===route));
  $("#sidebar").classList.remove("open");
  $("#menu-toggle").setAttribute("aria-expanded","false");
- document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe",profile:"Meu perfil"}[route]||"Biblioteca");
+ document.title="BookShare — "+({home:"Início",books:"Livros",students:"Alunos",loans:"Empréstimos",returns:"Devoluções",reports:"Relatórios",reservations:"Reservas",users:"Equipe",profile:"Meu perfil",schools:"Escolas"}[route]||"Biblioteca");
  refresh(route);
 }
 const message = text=>'<p class="empty">'+esc(text)+'</p>';
@@ -87,15 +110,15 @@ function renderDashboard(data){
 function renderBooks(items){
  const rows=items.slice(0,state.bookVisible);
  $("#books-grid").innerHTML=rows.map(x=>{
-   const url=x.cover_id?media(x.cover_id):legacyCover(x.cover_url);
-   const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
-   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button><button class="small-button secondary-edit" data-manage-copies="'+esc(x.id)+'">Exemplares</button></div></div></article>';
+   const image='<img src="'+cover(x.id)+'" loading="lazy" alt="Capa ou imagem ilustrativa de '+esc(x.title)+'">';
+   const remove=state.user?.role==="admin"?'<button class="small-button danger-text" data-delete-book="'+esc(x.id)+'">Excluir</button>':"";
+   return '<article class="book-card"><div class="book-cover">'+image+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button><button class="small-button secondary-edit" data-edit-book="'+esc(x.id)+'">Editar</button><button class="small-button secondary-edit" data-manage-copies="'+esc(x.id)+'">Exemplares</button>'+remove+'</div></div></article>';
  }).join("")||message("Ainda não há livros no acervo.");
  $("#books-count").textContent=items.length+" título"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
 }
 function avatar(item){
- return '<div class="avatar">'+(item.photo_id?'<img src="'+media(item.photo_id)+'" alt="">':esc(item.name.slice(0,1).toUpperCase()))+'</div>';
+ return '<div class="avatar"><img src="'+portrait(item.id)+'" loading="lazy" alt="'+(item.photo_id?"Foto autorizada de "+esc(item.name):"Avatar ilustrativo, não é foto do estudante")+'"></div>';
 }
 function table(head,rows){
  if(!rows.length)return message("Nenhum registro encontrado.");
@@ -103,7 +126,7 @@ function table(head,rows){
 }
 function renderStudents(items){
  const rows=items.slice(0,state.studentVisible);
- $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],rows.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button></td></tr>'));
+ $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],rows.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button>'+(state.user?.role==="admin"?'<button class="small-button danger-text" data-delete-student="'+esc(x.id)+'">Excluir</button>':"")+'</td></tr>'));
  $("#students-count").textContent=items.length+" aluno"+(items.length===1?"":"s");
  if(items.length>rows.length)$("#students-table").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="students">Mostrar mais alunos ('+esc(items.length-rows.length)+')</button></div>');
 }
@@ -145,14 +168,26 @@ function renderUsers(items){
  ].map(([name,n])=>'<div class="team-kpi"><span>'+esc(name)+'</span><strong>'+n+'</strong></div>').join("");
  $("#users-table").innerHTML=table(["Funcionário","E-mail","Perfil","Acesso","Ações"],filtered.map(x=>
   '<tr><td><strong>'+esc(x.name)+'</strong></td><td>'+esc(x.email)+'</td><td>'+esc(x.role==="admin"?"Administrador":"Bibliotecária")+'</td><td>'+chip(x.active?"Ativo":"Desativado",x.active?"":"warn")+'</td>'+
-  '<td><div class="actions"><button class="small-button" data-edit-user="'+esc(x.id)+'">Editar</button><button class="small-button" data-reset-user="'+esc(x.id)+'">Senha</button><button class="small-button '+(x.active?"danger-text":"")+'" data-toggle-user="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button></div></td></tr>'
+  '<td><div class="actions"><button class="small-button" data-edit-user="'+esc(x.id)+'">Editar</button><button class="small-button" data-reset-user="'+esc(x.id)+'">Senha</button><button class="small-button '+(x.active?"danger-text":"")+'" data-toggle-user="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button><button class="small-button danger-text" data-delete-user="'+esc(x.id)+'">Excluir</button></div></td></tr>'
  ));
+}
+function renderSchools(items){
+ $("#school-summary").innerHTML=[
+  ["Escolas cadastradas",items.length],
+  ["Escolas ativas",items.filter(x=>x.active).length],
+  ["Alunos cadastrados",items.reduce((a,x)=>a+Number(x.students||0),0)]
+ ].map(([label,n])=>'<div class="team-kpi"><span>'+esc(label)+'</span><strong>'+n+'</strong></div>').join("");
+ $("#schools-table").innerHTML=table(["Escola","Localização","Pessoas","Situação","Ações"],items.map(x=>{
+  const choices='<div class="actions"><button class="small-button" data-select-school="'+esc(x.id)+'">Abrir</button><button class="small-button" data-edit-school="'+esc(x.id)+'">Editar</button><button class="small-button" data-toggle-school="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button><button class="small-button danger-text" data-delete-school="'+esc(x.id)+'">Excluir</button></div>';
+  return '<tr><td><strong>'+esc(x.name)+'</strong><small class="school-address">'+esc(x.address||"")+'</small></td><td>'+esc(x.city)+' / '+esc(x.state)+'</td><td>'+esc(x.students)+' alunos · '+esc(x.users)+' funcionários</td><td>'+chip(x.active?"Ativa":"Desativada",x.active?"":"warn")+'</td><td>'+choices+'</td></tr>';
+ }));
 }
 function renderProfile(user){
  $("#profile-card").innerHTML='<span class="profile-large-avatar">'+esc(user.name.slice(0,1).toUpperCase())+'</span>'+
   '<h2>'+esc(user.name)+'</h2><p class="muted">'+esc(user.role==="admin"?"Administrador":"Bibliotecária")+'</p>'+
   '<div class="profile-data"><span>E-mail</span><strong>'+esc(user.email)+'</strong></div>'+
   '<div class="profile-data"><span>Perfil de acesso</span><strong>'+esc(user.role==="admin"?"Administração":"Biblioteca")+'</strong></div>'+
+  '<div class="profile-data"><span>Escola vinculada</span><strong>'+esc(user.school_name||"Colégio Helena Wysocki · Araucária")+'</strong></div>'+
   '<button class="button primary" data-modal="profile">Editar meus dados</button>';
 }
 const field=(label,name,placeholder="",type="text",required=true,value="",wide=false)=>'<label class="'+(wide?"wide":"")+'">'+esc(label)+'<input type="'+esc(type)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'" value="'+esc(value)+'" '+(required?"required":"")+'></label>';
@@ -242,7 +277,38 @@ function bindPicker(form,kind,items,labelFn,descFn,selectedCb){
 }
 
 async function openModal(type,extra){
- if(type==="student"){
+ if(type==="school"){
+    if(state.user?.role!=="admin")return;
+    const old=state.schools.find(x=>x.id===extra);
+    const fields=field("Nome da escola","name","Ex.: Colégio Helena Wysocki","text",true,old?.name||"",true)
+      +field("Cidade","city","Ex.: Araucária","text",true,old?.city||"")
+      +field("Estado","state","PR","text",true,old?.state||"PR")
+      +field("Endereço","address","Rua e número","text",false,old?.address||"",true)
+      +field("Telefone","phone","Opcional","text",false,old?.phone||"")
+      +field("E-mail da escola","email","Opcional","email",false,old?.email||"")
+      +(old?selectField("Situação da escola","active",[["true","Ativa"],["false","Desativada"]]):"");
+    openDialog(old?"Editar escola":"Cadastrar escola",old?"Atualize os dados da unidade escolar.":"Selecione a escola no topo para cadastrar seus alunos e livros.",fields,async b=>{
+      const d=await api(old?"/schools/"+old.id:"/schools",{method:old?"PATCH":"POST",
+      body:JSON.stringify({name:b.name,city:b.city,state:b.state,address:b.address,phone:b.phone,email:b.email,active:b.active!=="false"})});
+      if(!old)state.schoolId=d.item.id;
+      await loadSchools();
+    },old?"Salvar escola":"Cadastrar escola");
+    if(old)$("#modal-form [name=active]").value=String(old.active);
+  }
+  else if(type==="delete"){
+    if(state.user?.role!=="admin")return;
+    const {kind,id,label}=extra;
+    const routes={school:"schools",user:"users",student:"students",book:"books",copy:"copies"};
+    if(!routes[kind])return;
+    const fields='<label class="wide">Para confirmar, digite EXCLUIR<input name="confirmation" autocomplete="off" placeholder="EXCLUIR" required></label>';
+    openDialog("Excluir "+label,"Esta ação não poderá ser desfeita. Registros com histórico protegido não poderão ser excluídos.",fields,async b=>{
+      if(b.confirmation.trim().toUpperCase()!=="EXCLUIR")throw Error("Digite EXCLUIR para confirmar.");
+      await api("/"+routes[kind]+"/"+id,{method:"DELETE"});
+      if(kind==="school" && state.schoolId===id)state.schoolId=state.user.school_id;
+      if(kind==="school")await loadSchools();
+    },"Excluir definitivamente");
+  }
+  else if(type==="student"){
    const old=state.students.find(x=>x.id===extra);
    const fields=field("Nome completo","name","Nome do aluno","text",true,old?.name||"",true)
      +field("Matrícula","registration","Número de matrícula","text",true,old?.registration||"")
@@ -283,7 +349,8 @@ async function openModal(type,extra){
    const entries=all.map(c=>{
      const actions=state.user?.role==="admin" && c.status!=="loaned"?
        '<div class="copy-actions">'+(c.status!=="available"?'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="available" data-book="'+esc(book.id)+'">Disponibilizar</button>':'<button class="small-button" data-copy-action="'+esc(c.id)+'" data-status="damaged" data-book="'+esc(book.id)+'">Marcar danificado</button>')+
-       (c.status!=="lost"?'<button class="small-button danger-text" data-copy-action="'+esc(c.id)+'" data-status="lost" data-book="'+esc(book.id)+'">Extraviado</button>':'')+'</div>':'';
+       (c.status!=="lost"?'<button class="small-button danger-text" data-copy-action="'+esc(c.id)+'" data-status="lost" data-book="'+esc(book.id)+'">Extraviado</button>':'')+
+       '<button class="small-button danger-text" data-delete-copy="'+esc(c.id)+'">Excluir</button></div>':'';
      return '<div class="copy-line"><div><strong>'+esc(c.code)+'</strong><small>'+esc(labels[c.status]||c.status)+'</small></div>'+actions+'</div>';
    }).join("")||message("Ainda não há exemplares deste livro.");
    $("#dialog-content").innerHTML='<div class="modal-heading"><span class="eyebrow">ACERVO · EXEMPLARES</span><h2 id="dialog-heading">'+esc(book.title)+'</h2><p class="muted">Acompanhe cada exemplar físico.</p></div>'+
@@ -404,6 +471,43 @@ document.addEventListener("click",async e=>{
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
   if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
  if(el.dataset.manageCopies)return openModal("copies",el.dataset.manageCopies);
+ if(el.dataset.selectSchool){
+  state.schoolId=el.dataset.selectSchool;
+  $("#school-selector").value=state.schoolId;
+  state.bookVisible=24;state.studentVisible=40;
+  navigate("home");toast("Escola selecionada.");
+  return;
+ }
+ if(el.dataset.editSchool)return openModal("school",el.dataset.editSchool);
+ if(el.dataset.deleteSchool){
+  const current=state.schools.find(x=>x.id===el.dataset.deleteSchool);
+  if(current)return openModal("delete",{kind:"school",id:current.id,label:current.name});
+ }
+ if(el.dataset.toggleSchool){
+  const current=state.schools.find(x=>x.id===el.dataset.toggleSchool);
+  if(!current)return;
+  if(!confirm((current.active?"Desativar":"Ativar")+" a escola "+current.name+"?"))return;
+  el.disabled=true;
+  try{
+   await api("/schools/"+current.id,{method:"PATCH",body:JSON.stringify({...current,active:!current.active})});
+   await loadSchools();renderSchools(state.schools);toast("Situação da escola atualizada.");
+  }catch(error){toast(error.message,true)}finally{el.disabled=false}
+  return;
+ }
+ if(el.dataset.deleteUser){
+  const current=state.users.find(x=>x.id===el.dataset.deleteUser);
+  if(current)return openModal("delete",{kind:"user",id:current.id,label:current.name});
+ }
+ if(el.dataset.deleteStudent){
+  const current=state.students.find(x=>x.id===el.dataset.deleteStudent);
+  if(current)return openModal("delete",{kind:"student",id:current.id,label:current.name});
+ }
+ if(el.dataset.deleteBook){
+  const current=state.books.find(x=>x.id===el.dataset.deleteBook);
+  if(current)return openModal("delete",{kind:"book",id:current.id,label:current.title});
+ }
+ if(el.dataset.deleteCopy){if(dialog.open)dialog.close();return openModal("delete",{kind:"copy",id:el.dataset.deleteCopy,label:"exemplar"});}
+
  if(el.dataset.editUser)return openModal("user",el.dataset.editUser);
  if(el.dataset.resetUser)return openModal("reset-user",el.dataset.resetUser);
  if(el.dataset.toggleUser){
@@ -444,6 +548,17 @@ let timer;
  $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else if(type==="students")state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
 });
 $("#users-search").addEventListener("input",()=>renderUsers(state.users));
+$("#school-selector").addEventListener("change",event=>{
+ state.schoolId=event.target.value;
+ state.bookVisible=24;state.studentVisible=40;
+ navigate("home");
+});
+document.addEventListener("error",event=>{
+ if(event.target instanceof HTMLImageElement && !event.target.dataset.fallback){
+   event.target.dataset.fallback="1";
+   event.target.src=event.target.closest(".book-cover")?"/assets/book-cover.svg":"/assets/student-avatar.svg";
+ }
+},true);
 $("#menu-toggle").onclick=()=>{
  const opened=$("#sidebar").classList.toggle("open");
  $("#menu-toggle").setAttribute("aria-expanded",String(opened));
