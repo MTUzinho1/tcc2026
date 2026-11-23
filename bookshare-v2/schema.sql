@@ -1,5 +1,7 @@
 -- Schema isolado da V2, execute SOMENTE em um banco novo.
 BEGIN;
+CREATE SCHEMA IF NOT EXISTS bookshare_v2;
+SET LOCAL search_path TO bookshare_v2, public;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -68,4 +70,9 @@ CREATE TABLE IF NOT EXISTS reservations (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_reservation_per_student_book ON reservations(student_id,book_id)
   WHERE status IN ('waiting','ready');
+
+-- Somente a API Node autenticada acessa as tabelas: nada é liberado à Data API pública.
+REVOKE ALL ON SCHEMA bookshare_v2 FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON ALL TABLES IN SCHEMA bookshare_v2 FROM PUBLIC, anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA bookshare_v2 REVOKE ALL ON TABLES FROM PUBLIC, anon, authenticated;
 COMMIT;
