@@ -5,9 +5,9 @@ const state={user:null,schoolId:null,schools:[],route:"home",loanFilter:"active"
 const plain = x=>String(x??"");
 const esc = x=>plain(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = x=> x ? new Date(plain(x).length===10 ? x+"T12:00:00" : x).toLocaleDateString("pt-BR"):"—";
-const media = id=> id ? "/api/media/"+encodeURIComponent(id) : null;
-const cover = id=>"/api/books/"+encodeURIComponent(id)+"/cover";
-const portrait = id=>"/api/students/"+encodeURIComponent(id)+"/avatar";
+const media = id=> id ? "/api/media/"+encodeURIComponent(id)+"?school_id="+encodeURIComponent(state.schoolId||"") : null;
+const cover = id=>"/api/books/"+encodeURIComponent(id)+"/cover?school_id="+encodeURIComponent(state.schoolId||"");
+const portrait = id=>"/api/students/"+encodeURIComponent(id)+"/avatar?school_id="+encodeURIComponent(state.schoolId||"");
 const legacyCover = raw=>{try{const url=new URL(raw);return url.protocol==="https:" && ["books.google.com","books.googleusercontent.com","covers.openlibrary.org","images-na.ssl-images-amazon.com","m.media-amazon.com"].includes(url.hostname)?url.href:null;}catch{return null;}};
 const toast=(message,bad=false)=>{
  const el=$("#toast");el.textContent=message;el.className="shown"+(bad?" danger":"");
