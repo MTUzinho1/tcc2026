@@ -157,7 +157,7 @@ function renderProfile(user){
 }
 const field=(label,name,placeholder="",type="text",required=true,value="",wide=false)=>'<label class="'+(wide?"wide":"")+'">'+esc(label)+'<input type="'+esc(type)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'" value="'+esc(value)+'" '+(required?"required":"")+'></label>';
 const selectField=(label,name,items,required=true)=>'<label>'+esc(label)+'<select name="'+esc(name)+'" '+(required?"required":"")+'>'+items.map(([v,text])=>'<option value="'+esc(v)+'">'+esc(text)+'</option>').join("")+'</select></label>';
-const shell=(title,subtitle,fields,submit="Salvar")=>'<p class="eyebrow">BOOKSHARE / CADASTRO</p><h2>'+esc(title)+'</h2><p class="muted">'+esc(subtitle)+'</p><form id="modal-form"><div class="form-grid">'+fields+'</div><div class="form-actions"><button type="button" class="button secondary" data-close>Cancelar</button><button type="submit" class="button primary">'+esc(submit)+'</button></div><p class="error" id="modal-error" role="alert"></p></form>';
+const shell=(title,subtitle,fields,submit="Salvar")=>'<div class="modal-heading"><span class="eyebrow">BIBLIOTECA · ATENDIMENTO</span><h2 id="dialog-heading">'+esc(title)+'</h2><p class="muted">'+esc(subtitle)+'</p></div><form id="modal-form"><div class="form-grid">'+fields+'</div><p class="error" id="modal-error" role="alert"></p><div class="form-actions"><button type="button" class="button secondary" data-close>Cancelar</button><button type="submit" class="button primary">'+esc(submit)+'</button></div></form>';
 const dialog=$("#dialog");
 function openDialog(title,subtitle,fields,onSubmit,submit){
  $("#dialog-content").innerHTML=shell(title,subtitle,fields,submit);
@@ -400,7 +400,7 @@ document.addEventListener("click",async e=>{
  if(el.dataset.action==="print-reports"){window.print();return;}
  if(el.dataset.modal)return openModal(el.dataset.modal);
  if(el.dataset.close){dialog.close();return;}
- if(el.dataset.addCopy)return openModal("copy",el.dataset.addCopy);
+ if(el.dataset.addCopy){if(dialog.open)dialog.close();return openModal("copy",el.dataset.addCopy);}
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
   if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
  if(el.dataset.manageCopies)return openModal("copies",el.dataset.manageCopies);
