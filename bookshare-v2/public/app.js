@@ -85,7 +85,7 @@ function renderLoans(items){
 function renderReservations(items){
  $("#reservations-table").innerHTML=table(["Livro","Aluno","Solicitação","Situação","Ações"],items.map(x=>{
  const words={waiting:"Aguardando",ready:"Disponível",completed:"Concluída",cancelled:"Cancelada"};
- const actions=["waiting","ready"].includes(x.status)?'<div class="actions"><button class="small-button" data-res-status="'+esc(x.id)+'" data-value="'+(x.status==="waiting"?"ready":"completed")+'">'+(x.status==="waiting"?"Disponibilizar":"Concluir")+'</button><button class="small-button danger-text" data-res-status="'+esc(x.id)+'" data-value="cancelled">Cancelar</button></div>':"—";
+ const actions=["waiting","ready"].includes(x.status)?'<div class="actions">'+(x.status==="waiting"?'<button class="small-button" data-res-status="'+esc(x.id)+'" data-value="ready">Disponibilizar</button>':'<button class="small-button" data-pickup="'+esc(x.id)+'">Registrar retirada</button>')+'<button class="small-button danger-text" data-res-status="'+esc(x.id)+'" data-value="cancelled">Cancelar</button></div>':"—";
  return '<tr><td><strong>'+esc(x.book)+'</strong></td><td>'+esc(x.student)+'</td><td>'+fmt(x.created_at)+'</td><td>'+chip(words[x.status]||x.status,x.status==="waiting"?"warn":"")+'</td><td>'+actions+'</td></tr>';
  }));
 }
@@ -150,6 +150,8 @@ async function openModal(type,extra){
    const dueStr=due.toISOString().slice(0,10);
    const fields=selectField("Aluno","student_id",students.filter(x=>x.active).map(x=>[x.id,x.name+" · "+x.registration]))+selectField("Exemplar disponível","copy_id",ready.map(x=>[x.id,x.title+" · "+x.code]))+field("Data de devolução","due_date","","date",true,dueStr,true);
    openDialog("Novo empréstimo","Selecione aluno, exemplar e vencimento.",fields,async b=>api("/loans",{method:"POST",body:JSON.stringify(b)}),"Registrar empréstimo");
+   if(extra?.student_id){$("#modal-form [name=student_id]").value=extra.student_id;}
+   if(extra?.book_id){const candidate=ready.find(c=>c.book_id===extra.book_id);if(candidate)$("#modal-form [name=copy_id]").value=candidate.id;}
  }
  else if(type==="reservation"){
    const [students,books]=await Promise.all([getItems("/students?limit=100"),getItems("/books?limit=100")]);
@@ -170,7 +172,7 @@ async function openModal(type,extra){
  }
  else if(type==="renew"){
    const row=state.loans.find(x=>x.id===extra);if(!row)return;
-   const due=new Date(row.due_date+"T12:00:00");due.setDate(due.getDate()+14);
+   const due=new Date(String(row.due_date).slice(0,10)+"T12:00:00");due.setDate(due.getDate()+14);
    const fields=field("Novo vencimento","due_date","","date",true,due.toISOString().slice(0,10),true);
    openDialog("Renovar empréstimo","A nova data precisa ser posterior à atual. Até duas renovações.",fields,async b=>api("/loans/"+extra+"/renew",{method:"POST",body:JSON.stringify(b)}),"Confirmar renovação");
  }
@@ -185,6 +187,7 @@ document.addEventListener("click",async e=>{
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
  if(el.dataset.return)return openModal("return",el.dataset.return);
  if(el.dataset.renew)return openModal("renew",el.dataset.renew);
+ if(el.dataset.pickup){const reservation=state.reservations.find(x=>x.id===el.dataset.pickup);if(reservation)await openModal("loan",{student_id:reservation.student_id,book_id:reservation.book_id});return;}
  if(el.dataset.resStatus){
   if(!confirm("Confirmar atualização da reserva?"))return;
   try{await api("/reservations/"+el.dataset.resStatus+"/status",{method:"POST",body:JSON.stringify({status:el.dataset.value})});toast("Reserva atualizada.");await refresh();}
