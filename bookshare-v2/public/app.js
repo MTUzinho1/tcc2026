@@ -168,14 +168,26 @@ function renderUsers(items){
  ].map(([name,n])=>'<div class="team-kpi"><span>'+esc(name)+'</span><strong>'+n+'</strong></div>').join("");
  $("#users-table").innerHTML=table(["Funcionário","E-mail","Perfil","Acesso","Ações"],filtered.map(x=>
   '<tr><td><strong>'+esc(x.name)+'</strong></td><td>'+esc(x.email)+'</td><td>'+esc(x.role==="admin"?"Administrador":"Bibliotecária")+'</td><td>'+chip(x.active?"Ativo":"Desativado",x.active?"":"warn")+'</td>'+
-  '<td><div class="actions"><button class="small-button" data-edit-user="'+esc(x.id)+'">Editar</button><button class="small-button" data-reset-user="'+esc(x.id)+'">Senha</button><button class="small-button '+(x.active?"danger-text":"")+'" data-toggle-user="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button></div></td></tr>'
+  '<td><div class="actions"><button class="small-button" data-edit-user="'+esc(x.id)+'">Editar</button><button class="small-button" data-reset-user="'+esc(x.id)+'">Senha</button><button class="small-button '+(x.active?"danger-text":"")+'" data-toggle-user="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button><button class="small-button danger-text" data-delete-user="'+esc(x.id)+'">Excluir</button></div></td></tr>'
  ));
+}
+function renderSchools(items){
+ $("#school-summary").innerHTML=[
+  ["Escolas cadastradas",items.length],
+  ["Escolas ativas",items.filter(x=>x.active).length],
+  ["Alunos cadastrados",items.reduce((a,x)=>a+Number(x.students||0),0)]
+ ].map(([label,n])=>'<div class="team-kpi"><span>'+esc(label)+'</span><strong>'+n+'</strong></div>').join("");
+ $("#schools-table").innerHTML=table(["Escola","Localização","Pessoas","Situação","Ações"],items.map(x=>{
+  const choices='<div class="actions"><button class="small-button" data-select-school="'+esc(x.id)+'">Abrir</button><button class="small-button" data-edit-school="'+esc(x.id)+'">Editar</button><button class="small-button" data-toggle-school="'+esc(x.id)+'">'+(x.active?"Desativar":"Ativar")+'</button><button class="small-button danger-text" data-delete-school="'+esc(x.id)+'">Excluir</button></div>';
+  return '<tr><td><strong>'+esc(x.name)+'</strong><small class="school-address">'+esc(x.address||"")+'</small></td><td>'+esc(x.city)+' / '+esc(x.state)+'</td><td>'+esc(x.students)+' alunos · '+esc(x.users)+' funcionários</td><td>'+chip(x.active?"Ativa":"Desativada",x.active?"":"warn")+'</td><td>'+choices+'</td></tr>';
+ }));
 }
 function renderProfile(user){
  $("#profile-card").innerHTML='<span class="profile-large-avatar">'+esc(user.name.slice(0,1).toUpperCase())+'</span>'+
   '<h2>'+esc(user.name)+'</h2><p class="muted">'+esc(user.role==="admin"?"Administrador":"Bibliotecária")+'</p>'+
   '<div class="profile-data"><span>E-mail</span><strong>'+esc(user.email)+'</strong></div>'+
   '<div class="profile-data"><span>Perfil de acesso</span><strong>'+esc(user.role==="admin"?"Administração":"Biblioteca")+'</strong></div>'+
+  '<div class="profile-data"><span>Escola vinculada</span><strong>'+esc(user.school_name||"Colégio Helena Wysocki · Araucária")+'</strong></div>'+
   '<button class="button primary" data-modal="profile">Editar meus dados</button>';
 }
 const field=(label,name,placeholder="",type="text",required=true,value="",wide=false)=>'<label class="'+(wide?"wide":"")+'">'+esc(label)+'<input type="'+esc(type)+'" name="'+esc(name)+'" placeholder="'+esc(placeholder)+'" value="'+esc(value)+'" '+(required?"required":"")+'></label>';
