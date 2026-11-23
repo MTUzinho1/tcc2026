@@ -159,6 +159,10 @@ async function openModal(type,extra){
    const fields=selectField("Aluno","student_id",students.filter(x=>x.active).map(x=>[x.id,x.name]))+selectField("Livro","book_id",selectOption(books));
    openDialog("Nova reserva","Registre a solicitação de um livro.",fields,async b=>api("/reservations",{method:"POST",body:JSON.stringify(b)}));
  }
+ else if(type==="password"){
+   const fields=field("Senha atual","current_password","Senha atual","password",true,"",true)+field("Nova senha (mínimo 12 caracteres)","new_password","Nova senha","password",true,"",true);
+   openDialog("Alterar minha senha","Escolha uma senha forte que você não usa em outros serviços.",fields,async b=>api("/me/password",{method:"POST",body:JSON.stringify(b)}),"Atualizar senha");
+ }
  else if(type==="user"){
    if(state.user?.role!=="admin")return;
    const fields=field("Nome","name","Nome completo","text",true,"",true)+field("E-mail","email","email@escola.com","email",true,"",true)+field("Senha (12+ caracteres)","password","Senha inicial","password",true,"",true)+selectField("Perfil","role",[["librarian","Bibliotecária"],["admin","Administrador"]]);
