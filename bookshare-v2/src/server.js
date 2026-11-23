@@ -97,7 +97,8 @@ app.get("/api/me",authenticate,wrap(async(req,res)=>{
 app.use("/api",authenticate);
 app.use("/api",async(req,res,next)=>{
  try{
-   const requested=req.get("x-school-id");
+   const isMedia=req.method==="GET" && /^\/(?:books\/[0-9a-f-]+\/cover|students\/[0-9a-f-]+\/avatar|media\/[0-9a-f-]+)$/i.test(req.path);
+   const requested=req.get("x-school-id") || (isMedia ? req.query.school_id : null);
    if(requested && req.identity.role!=="admin" && requested!==req.identity.school_id)
      throw new DomainError("Você não pode acessar outra escola.",403);
    const schoolId=req.identity.role==="admin"&&requested?validUuid(requested):req.identity.school_id;
