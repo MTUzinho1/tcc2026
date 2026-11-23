@@ -18,7 +18,8 @@ export function validUuid(value) {
 }
 export function validDueDate(value, today = new Date()) {
   const due = String(value ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(due) || Number.isNaN(Date.parse(due + "T12:00:00Z"))) {
+  const parsed = new Date(due + "T12:00:00Z");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0,10) !== due) {
     throw new DomainError("Data de devolução inválida.");
   }
   const base = today.toISOString().slice(0, 10);
@@ -43,14 +44,19 @@ export async function createLoan(pool, { studentId, copyId, dueDate, userId }) {
   return transact(pool, async (db) => {
     const student = await db.query("SELECT active FROM students WHERE id=$1", [studentId]);
     if (!student.rowCount || !student.rows[0].active) throw new DomainError("Aluno não encontrado ou inativo.", 404);
+    const parent = await db.query("SELECT book_id FROM copies WHERE id=$1", [copyId]);
+    if (!parent.rowCount) throw new DomainError("Exemplar não encontrado.", 404);
+    await db.query("SELECT id FROM books WHERE id=$1 FOR UPDATE", [parent.rows[0].book_id]);
     const copy = await db.query("SELECT status FROM copies WHERE id=$1 FOR UPDATE", [copyId]);
-    if (!copy.rowCount) throw new DomainError("Exemplar não encontrado.", 404);
     if (copy.rows[0].status !== "available") throw new DomainError("Exemplar indisponível para empréstimo.", 409);
+    const ready = await db.query("SELECT student_id FROM reservations WHERE book_id=$1 AND status='ready' ORDER BY created_at LIMIT 1", [parent.rows[0].book_id]);
+    if (ready.rowCount && ready.rows[0].student_id !== studentId) throw new DomainError("Exemplar reservado para outro aluno.", 409);
     const loan = await db.query(
       "INSERT INTO loans(student_id,copy_id,due_date,issued_by) VALUES($1,$2,$3,$4) RETURNING *",
       [studentId, copyId, due, userId]
     );
     await db.query("UPDATE copies SET status='loaned' WHERE id=$1", [copyId]);
+    await db.query("UPDATE reservations SET status='completed',updated_at=now() WHERE book_id=$1 AND student_id=$2 AND status='ready'", [parent.rows[0].book_id,studentId]);
     return loan.rows[0];
   });
 }
@@ -82,6 +88,32 @@ export async function renewLoan(pool, id, dueDate) {
     const oldDue = new Date(old.due_date).toISOString().slice(0,10);
     if (due <= oldDue) throw new DomainError("A nova data deve ser posterior ao vencimento atual.");
     const updated = await db.query("UPDATE loans SET due_date=$2, renewals=renewals+1 WHERE id=$1 RETURNING *", [id, due]);
+    return updated.rows[0];
+  });
+}
+
+export async function transactReservation(pool, id, nextStatus) {
+  validUuid(id);
+  if(!["ready","completed","cancelled"].includes(nextStatus)) throw new DomainError("Estado de reserva inválido.");
+  return transact(pool, async db => {
+    const basic=await db.query("SELECT book_id FROM reservations WHERE id=$1",[id]);
+    if(!basic.rowCount) throw new DomainError("Reserva não encontrada.",404);
+    await db.query("SELECT id FROM books WHERE id=$1 FOR UPDATE",[basic.rows[0].book_id]);
+    const reservation=await db.query("SELECT * FROM reservations WHERE id=$1 FOR UPDATE",[id]);
+    const current=reservation.rows[0];
+    if (["cancelled","completed"].includes(current.status)) throw new DomainError("Esta reserva já foi encerrada.",409);
+    if (nextStatus==="ready") {
+      if(current.status!=="waiting") throw new DomainError("Só reservas aguardando podem ser disponibilizadas.",409);
+      const amount=await db.query("SELECT count(*)::int AS available FROM copies WHERE book_id=$1 AND status='available'",[current.book_id]);
+      const others=await db.query("SELECT count(*)::int AS ready FROM reservations WHERE book_id=$1 AND status='ready' AND id<>$2",[current.book_id,id]);
+      if(others.rows[0].ready >= amount.rows[0].available) throw new DomainError("Nenhum exemplar disponível para esta reserva.",409);
+    }
+    if(nextStatus==="completed") {
+      if(current.status!=="ready") throw new DomainError("A reserva ainda não está disponível.",409);
+      const loan=await db.query("SELECT 1 FROM loans l JOIN copies c ON c.id=l.copy_id WHERE l.student_id=$1 AND c.book_id=$2 AND l.status='active' LIMIT 1",[current.student_id,current.book_id]);
+      if(!loan.rowCount) throw new DomainError("Registre primeiro o empréstimo ao aluno.",409);
+    }
+    const updated=await db.query("UPDATE reservations SET status=$2,updated_at=now() WHERE id=$1 RETURNING *",[id,nextStatus]);
     return updated.rows[0];
   });
 }
