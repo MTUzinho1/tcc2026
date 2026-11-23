@@ -202,7 +202,7 @@ function bindPicker(form,kind,items,labelFn,descFn,selectedCb){
  const norm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
  function close(){results.hidden=true;search.setAttribute("aria-expanded","false")}
  function choose(item){
-   current=item;value.value=item.id;search.value=labelFn(item);search.hidden=true;
+   current=item;value.value=item.id;search.value=labelFn(item);search.parentElement.hidden=true;
    chosen.textContent=labelFn(item)+" · "+descFn(item);
    selected.hidden=false;close();selectedCb?.();
  }
@@ -237,7 +237,7 @@ function bindPicker(form,kind,items,labelFn,descFn,selectedCb){
    if(event.key==="ArrowUp"){event.preventDefault();if(idx===0)search.focus();else buttons[idx-1]?.focus();}
    if(event.key==="Escape"){close();search.focus();}
  });
- change.addEventListener("click",()=>{selected.hidden=true;search.hidden=false;search.value="";value.value="";current=null;selectedCb?.();search.focus()});
+ change.addEventListener("click",()=>{selected.hidden=true;search.parentElement.hidden=false;search.value="";value.value="";current=null;selectedCb?.();search.focus()});
  return {choose,clear:()=>change.click(),search,get selected(){return current}};
 }
 
