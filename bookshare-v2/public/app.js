@@ -1,11 +1,12 @@
 "use strict";
 const $ = (q,root=document)=>root.querySelector(q);
 const $$ = (q,root=document)=>[...root.querySelectorAll(q)];
-const state={user:null,route:"home",loanFilter:"active",students:[],books:[],copies:[],loans:[],reservations:[],users:[]};
+const state={user:null,route:"home",loanFilter:"active",bookVisible:24,studentVisible:40,students:[],books:[],copies:[],loans:[],reservations:[],users:[]};
 const plain = x=>String(x??"");
 const esc = x=>plain(x).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = x=> x ? new Date(plain(x).length===10 ? x+"T12:00:00" : x).toLocaleDateString("pt-BR"):"—";
 const media = id=> id ? "/api/media/"+encodeURIComponent(id) : null;
+const legacyCover = raw=>{try{const url=new URL(raw);return url.protocol==="https:" && ["books.google.com","books.googleusercontent.com","covers.openlibrary.org","images-na.ssl-images-amazon.com","m.media-amazon.com"].includes(url.hostname)?url.href:null;}catch{return null;}};
 const toast=(message,bad=false)=>{
  const el=$("#toast");el.textContent=message;el.className="shown"+(bad?" danger":"");
  clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.className="",4800);
@@ -32,10 +33,10 @@ async function refresh(route=state.route){
      const d=await api("/dashboard");renderDashboard(d);
    }else if(route==="books"){
      const q=$("#books-search").value.trim();
-     const d=await api("/books?q="+encodeURIComponent(q)+"&limit=100");state.books=d.items;renderBooks(d.items);
+     const d=await api("/books?q="+encodeURIComponent(q)+"&limit=1000");state.books=d.items;renderBooks(d.items);
    }else if(route==="students"){
      const q=$("#students-search").value.trim();
-     const d=await api("/students?q="+encodeURIComponent(q)+"&limit=100");state.students=d.items;renderStudents(d.items);
+     const d=await api("/students?q="+encodeURIComponent(q)+"&limit=1000");state.students=d.items;renderStudents(d.items);
    }else if(route==="loans"){
      const d=await api("/loans?status="+state.loanFilter+"&limit=200");state.loans=d.items;renderLoans(d.items);
    }else if(route==="reservations"){
@@ -64,7 +65,13 @@ function renderDashboard(data){
  $("#recent").innerHTML=(data.recent||[]).map(x=>'<div class="item-line"><div><strong>'+esc(x.book)+'</strong><small>'+esc(x.student)+' · '+fmt(x.loaned_at)+'</small></div>'+chip(x.status==="active"?"Emprestado":"Devolvido",x.status==="active"?"warn":"")+'</div>').join("")||message("Os próximos empréstimos aparecem aqui.");
 }
 function renderBooks(items){
- $("#books-grid").innerHTML=items.map(x=>'<article class="book-card"><div class="book-cover">'+(x.cover_id?'<img src="'+media(x.cover_id)+'" loading="lazy" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>')+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button></div></div></article>').join("")||message("Ainda não há livros no acervo.");
+ const rows=items.slice(0,state.bookVisible);
+ $("#books-grid").innerHTML=rows.map(x=>{
+   const url=x.cover_id?media(x.cover_id):legacyCover(x.cover_url);
+   const cover=url?'<img src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" alt="Capa de '+esc(x.title)+'">':'<span class="placeholder" aria-hidden="true">▤</span>';
+   return '<article class="book-card"><div class="book-cover">'+cover+'</div><div class="book-body"><h3>'+esc(x.title)+'</h3><p>'+esc(x.author)+'</p><div class="book-foot">'+chip(x.available+" disponíveis",x.available?"":"warn")+'<button class="small-button" data-add-copy="'+esc(x.id)+'">+ Exemplar</button></div></div></article>';
+ }).join("")||message("Ainda não há livros no acervo.");
+ if(items.length>rows.length)$("#books-grid").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="books">Mostrar mais livros ('+esc(items.length-rows.length)+')</button></div>');
 }
 function avatar(item){
  return '<div class="avatar">'+(item.photo_id?'<img src="'+media(item.photo_id)+'" alt="">':esc(item.name.slice(0,1).toUpperCase()))+'</div>';
@@ -74,7 +81,9 @@ function table(head,rows){
  return '<table class="data-table"><thead><tr>'+head.map(h=>'<th scope="col">'+esc(h)+'</th>').join("")+'</tr></thead><tbody>'+rows.join("")+'</tbody></table>';
 }
 function renderStudents(items){
- $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],items.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button></td></tr>'));
+ const rows=items.slice(0,state.studentVisible);
+ $("#students-table").innerHTML=table(["Aluno","Matrícula","Turma","Situação",""],rows.map(x=>'<tr><td><div class="student-cell">'+avatar(x)+'<strong>'+esc(x.name)+'</strong></div></td><td>'+esc(x.registration)+'</td><td>'+esc(x.class_name)+'</td><td>'+chip(x.active?"Ativo":"Inativo",x.active?"":"warn")+'</td><td><button class="small-button" data-edit-student="'+esc(x.id)+'">Editar</button></td></tr>'));
+ if(items.length>rows.length)$("#students-table").insertAdjacentHTML("beforeend",'<div class="load-more"><button class="button secondary" data-more="students">Mostrar mais alunos ('+esc(items.length-rows.length)+')</button></div>');
 }
 function renderLoans(items){
  $("#loans-table").innerHTML=table(["Livro / exemplar","Aluno","Vencimento","Situação","Ações"],items.map(x=>{
@@ -136,14 +145,14 @@ async function openModal(type,extra){
    });
  }
  else if(type==="copy"){
-   const books=await getItems("/books?limit=100");
+   const books=await getItems("/books?limit=1000");
    if(!books.length)return toast("Cadastre um livro antes de adicionar exemplares.",true);
    const fields=selectField("Livro","book_id",selectOption(books))+field("Código patrimonial","code","Ex.: BIB-001");
    openDialog("Novo exemplar","Cada cópia física tem um código próprio.",fields,async b=>api("/copies",{method:"POST",body:JSON.stringify(b)}));
    if(extra)$("#modal-form [name=book_id]").value=extra;
  }
  else if(type==="loan"){
-   const [students,copies]=await Promise.all([getItems("/students?limit=100"),getItems("/copies?limit=200")]);
+   const [students,copies]=await Promise.all([getItems("/students?limit=1000"),getItems("/copies?limit=1000")]);
    const ready=copies.filter(x=>x.status==="available");
    if(!students.length||!ready.length)return toast("Cadastre um aluno e pelo menos um exemplar disponível.",true);
    const due=new Date();due.setDate(due.getDate()+14);
@@ -154,7 +163,7 @@ async function openModal(type,extra){
    if(extra?.book_id){const candidate=ready.find(c=>c.book_id===extra.book_id);if(candidate)$("#modal-form [name=copy_id]").value=candidate.id;}
  }
  else if(type==="reservation"){
-   const [students,books]=await Promise.all([getItems("/students?limit=100"),getItems("/books?limit=100")]);
+   const [students,books]=await Promise.all([getItems("/students?limit=1000"),getItems("/books?limit=1000")]);
    if(!students.length||!books.length)return toast("Cadastre alunos e livros antes de reservar.",true);
    const fields=selectField("Aluno","student_id",students.filter(x=>x.active).map(x=>[x.id,x.name]))+selectField("Livro","book_id",selectOption(books));
    openDialog("Nova reserva","Registre a solicitação de um livro.",fields,async b=>api("/reservations",{method:"POST",body:JSON.stringify(b)}));
@@ -184,6 +193,8 @@ async function openModal(type,extra){
 document.addEventListener("click",async e=>{
  const el=e.target.closest("button");if(!el)return;
  if(el.dataset.route){navigate(el.dataset.route);return;}
+ if(el.dataset.more==="books"){state.bookVisible+=24;renderBooks(state.books);return;}
+ if(el.dataset.more==="students"){state.studentVisible+=40;renderStudents(state.students);return;}
  if(el.dataset.action==="go-loan"){navigate("loans");await openModal("loan");return;}
  if(el.dataset.modal)return openModal(el.dataset.modal);
  if(el.dataset.close){dialog.close();return;}
@@ -201,7 +212,7 @@ document.addEventListener("click",async e=>{
 });
 let timer;
 ["books","students"].forEach(type=>{
- $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(()=>refresh(type),250);});
+ $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
 });
 $("#menu-toggle").onclick=()=>$("#sidebar").classList.toggle("open");
 $("#logout").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});}catch{}showLogin();};
