@@ -15,7 +15,7 @@ const PORT = Number(process.env.PORT || 3000);
 const secret = String(process.env.JWT_SECRET || "");
 if (secret.length < 32) throw new Error("Configure JWT_SECRET com pelo menos 32 caracteres.");
 if (!process.env.DATABASE_URL) throw new Error("Configure DATABASE_URL de um banco NOVO da V2.");
-const pool = new Pool({connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_SSL === "true" ? {rejectUnauthorized:true}:false});
+const pool = new Pool({connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_SSL === "true" ? {rejectUnauthorized:true}:false,options:"-c search_path=bookshare_v2,public"});
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 app.disable("x-powered-by");
 app.use(helmet({contentSecurityPolicy:{directives:{"default-src":["'self'"],"script-src":["'self'"],"style-src":["'self'"],"img-src":["'self'","data:"],"connect-src":["'self'"],"object-src":["'none'"],"frame-ancestors":["'none'"]}}}));
