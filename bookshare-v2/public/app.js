@@ -254,6 +254,9 @@ document.addEventListener("click",async e=>{
  if(el.dataset.more==="books"){state.bookVisible+=24;renderBooks(state.books);return;}
  if(el.dataset.more==="students"){state.studentVisible+=40;renderStudents(state.students);return;}
  if(el.dataset.action==="go-loan"){navigate("loans");await openModal("loan");return;}
+ if(el.dataset.action==="open-login"){showLogin();return;}
+ if(el.dataset.action==="back-landing"){showLanding();return;}
+ if(el.dataset.action==="print-reports"){window.print();return;}
  if(el.dataset.modal)return openModal(el.dataset.modal);
  if(el.dataset.close){dialog.close();return;}
  if(el.dataset.addCopy)return openModal("copy",el.dataset.addCopy);
@@ -269,11 +272,14 @@ document.addEventListener("click",async e=>{
  if(el.dataset.loanFilter){state.loanFilter=el.dataset.loanFilter;$$("[data-loan-filter]").forEach(b=>b.classList.toggle("selected",b===el));refresh("loans");}
 });
 let timer;
-["books","students"].forEach(type=>{
- $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
+["books","students","returns"].forEach(type=>{
+ $("#"+type+"-search").addEventListener("input",()=>{clearTimeout(timer);if(type==="books")state.bookVisible=24;else if(type==="students")state.studentVisible=40;timer=setTimeout(()=>refresh(type),250);});
 });
-$("#menu-toggle").onclick=()=>$("#sidebar").classList.toggle("open");
-$("#logout").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});}catch{}showLogin();};
+$("#menu-toggle").onclick=()=>{
+ const opened=$("#sidebar").classList.toggle("open");
+ $("#menu-toggle").setAttribute("aria-expanded",String(opened));
+};
+$("#logout").onclick=async()=>{try{await api("/auth/logout",{method:"POST",body:"{}"});}catch{}showLanding();};
 $("#login-form").addEventListener("submit",async e=>{
  e.preventDefault();const form=e.currentTarget,button=form.querySelector("button");
  button.disabled=true;$("#auth-error").textContent="";
@@ -281,4 +287,11 @@ $("#login-form").addEventListener("submit",async e=>{
  catch(err){$("#auth-error").textContent=err.message;}
  finally{button.disabled=false;}
 });
-(async()=>{try{const d=await api("/me");showApp(d.user)}catch{showLogin()}})();
+document.querySelector('[data-action-link="landing"]')?.addEventListener("click",e=>{e.preventDefault();showLanding();});
+(async()=>{
+ try{
+  const response=await fetch("/api/me",{credentials:"same-origin"});
+  if(!response.ok){showLanding();return;}
+  const d=await response.json();showApp(d.user);
+ }catch{showLanding();}
+})();
