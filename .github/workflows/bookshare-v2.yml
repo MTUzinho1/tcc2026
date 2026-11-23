@@ -1,12 +1,13 @@
 name: BookShare V2 - revisão automatizada
 on:
-  push:
-    branches:
-      - bookshare-v2-reconstrucao
   pull_request:
+    branches: [main]
     paths:
       - "bookshare-v2/**"
       - ".github/workflows/bookshare-v2.yml"
+concurrency:
+  group: bookshare-v2-testes
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -40,8 +41,13 @@ jobs:
           node-version: "22"
       - name: Instalar dependências
         run: npm install --no-audit --no-fund
-      - name: Instalar Chromium para UI
-        run: npx playwright install --with-deps chromium
+      - name: Preparar Chromium para UI
+        run: |
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "BOOKSHARE_CHROME=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Verificar sintaxe
         run: npm run check
       - name: Testar regras, API, banco de dados e UI
