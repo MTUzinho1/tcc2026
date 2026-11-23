@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 import { DomainError, requiredText, optionalText, validUuid, createLoan, returnLoan, renewLoan, transactReservation } from "./flows.js";
 import { registerSchools } from "./schools.js";
+import { registerMediaRoutes } from "./media.js";
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -109,6 +110,7 @@ app.use("/api",async(req,res,next)=>{
  }catch(error){next(error);}
 });
 registerSchools(app,{pool,query});
+registerMediaRoutes(app,{query});
 app.patch("/api/me",wrap(async(req,res)=>{
  const b=payload(req),id=req.identity.sub;
  const name=requiredText(b.name,"Nome",120);
@@ -168,7 +170,7 @@ app.patch("/api/students/:id",wrap(async(req,res)=>{
 }));
 app.get("/api/books",wrap(async(req,res)=>{
  const q=String(req.query.q||"").slice(0,100);
- const items=await query("SELECT b.id,b.title,b.author,b.isbn,b.category,b.cover_id,b.cover_url,b.school_id,count(c.id)::int copies,count(c.id) FILTER(WHERE c.status='available')::int available FROM bookshare_v2.books b LEFT JOIN bookshare_v2.copies c ON c.book_id=b.id AND c.school_id=b.school_id WHERE b.school_id=$3 AND ($1='' OR b.title ILIKE '%'||$1||'%' OR b.author ILIKE '%'||$1||'%' OR COALESCE(b.isbn,'') ILIKE '%'||$1||'%') GROUP BY b.id ORDER BY b.title LIMIT $2",[q,numberLimit(req.query.limit),req.schoolId]);
+ const items=await query("SELECT b.id,b.title,b.author,b.isbn,b.category,b.cover_id,b.school_id,count(c.id)::int copies,count(c.id) FILTER(WHERE c.status='available')::int available FROM bookshare_v2.books b LEFT JOIN bookshare_v2.copies c ON c.book_id=b.id AND c.school_id=b.school_id WHERE b.school_id=$3 AND ($1='' OR b.title ILIKE '%'||$1||'%' OR b.author ILIKE '%'||$1||'%' OR COALESCE(b.isbn,'') ILIKE '%'||$1||'%') GROUP BY b.id ORDER BY b.title LIMIT $2",[q,numberLimit(req.query.limit),req.schoolId]);
  res.json({items});
 }));
 app.post("/api/books",wrap(async(req,res)=>{
@@ -234,7 +236,7 @@ app.post("/api/reservations/:id/status",wrap(async(req,res)=>{
  res.json({item});
 }));
 app.get("/api/users",admin,wrap(async(req,res)=>{
- res.json({items:await query("SELECT id,name,email,role,active,created_at FROM bookshare_v2.users ORDER BY name LIMIT 100")});
+ res.json({items:await query("SELECT id,name,email,role,active,created_at,school_id FROM bookshare_v2.users WHERE school_id=$1 ORDER BY name LIMIT 1000",[req.schoolId])});
 }));
 app.post("/api/users",admin,wrap(async(req,res)=>{
  const b=payload(req),password=String(b.password||"");
@@ -243,8 +245,8 @@ app.post("/api/users",admin,wrap(async(req,res)=>{
  const hash=await bcrypt.hash(password,12);
  const email=requiredText(b.email,"E-mail",180).toLowerCase();
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new DomainError("Informe um e-mail válido.");
- const rows=await query("INSERT INTO bookshare_v2.users(name,email,password_hash,role) VALUES($1,$2,$3,$4) RETURNING id,name,email,role,active",
- [requiredText(b.name,"Nome",120),email,hash,b.role]);
+ const rows=await query("INSERT INTO bookshare_v2.users(name,email,password_hash,role,school_id) VALUES($1,$2,$3,$4,$5) RETURNING id,name,email,role,active,school_id",
+ [requiredText(b.name,"Nome",120),email,hash,b.role,req.schoolId]);
  res.status(201).json({item:rows[0]});
 }));
 app.patch("/api/users/:id",admin,wrap(async(req,res)=>{
@@ -256,14 +258,14 @@ app.patch("/api/users/:id",admin,wrap(async(req,res)=>{
  if(typeof b.active!=="boolean")throw new DomainError("Informe a situação da conta.");
  const result=await transactUser(pool,async db=>{
    await db.query("SELECT pg_advisory_xact_lock(2026001, 1)");
-   const target=await db.query("SELECT id,role,active FROM bookshare_v2.users WHERE id=$1 FOR UPDATE",[id]);
+   const target=await db.query("SELECT id,role,active FROM bookshare_v2.users WHERE id=$1 AND school_id=$2 FOR UPDATE",[id,req.schoolId]);
    if(!target.rowCount)throw new DomainError("Funcionário não encontrado.",404);
    if(id===req.identity.sub && (b.active===false || b.role!=="admin"))throw new DomainError("Você não pode remover seu próprio acesso de administrador.",409);
    if(target.rows[0].active && target.rows[0].role==="admin" && (!b.active || b.role!=="admin")){
      const count=await db.query("SELECT count(*)::int AS total FROM bookshare_v2.users WHERE active=true AND role='admin'");
      if(count.rows[0].total<=1)throw new DomainError("A biblioteca precisa ter pelo menos um administrador ativo.",409);
    }
-   const updated=await db.query("UPDATE bookshare_v2.users SET name=$2,email=$3,role=$4,active=$5 WHERE id=$1 RETURNING id,name,email,role,active,created_at",[id,name,email,b.role,b.active]);
+   const updated=await db.query("UPDATE bookshare_v2.users SET name=$2,email=$3,role=$4,active=$5 WHERE id=$1 AND school_id=$6 RETURNING id,name,email,role,active,created_at,school_id",[id,name,email,b.role,b.active,req.schoolId]);
    return updated.rows[0];
  });
  res.json({item:result});
@@ -272,7 +274,7 @@ app.post("/api/users/:id/reset-password",admin,wrap(async(req,res)=>{
  const id=validUuid(req.params.id),password=String(payload(req).password||"");
  if(password.length<12 || password.length>128)throw new DomainError("A senha deve ter entre 12 e 128 caracteres.");
  const hash=await bcrypt.hash(password,12);
- const rows=await query("UPDATE bookshare_v2.users SET password_hash=$2 WHERE id=$1 RETURNING id",[id,hash]);
+ const rows=await query("UPDATE bookshare_v2.users SET password_hash=$2 WHERE id=$1 AND school_id=$3 RETURNING id",[id,hash,req.schoolId]);
  if(!rows.length)throw new DomainError("Funcionário não encontrado.",404);
  res.json({ok:true});
 }));
@@ -280,11 +282,11 @@ app.patch("/api/copies/:id/status",admin,wrap(async(req,res)=>{
  const id=validUuid(req.params.id),status=String(payload(req).status||"");
  if(!["available","damaged","lost"].includes(status))throw new DomainError("Situação inválida.");
  const result=await transactUser(pool,async db=>{
-   const copy=await db.query("SELECT id,status FROM bookshare_v2.copies WHERE id=$1 FOR UPDATE",[id]);
+   const copy=await db.query("SELECT id,status FROM bookshare_v2.copies WHERE id=$1 AND school_id=$2 FOR UPDATE",[id,req.schoolId]);
    if(!copy.rowCount)throw new DomainError("Exemplar não encontrado.",404);
    const loans=await db.query("SELECT 1 FROM bookshare_v2.loans WHERE copy_id=$1 AND status='active'",[id]);
    if(loans.rowCount || copy.rows[0].status==="loaned")throw new DomainError("Devolva o empréstimo antes de alterar a situação do exemplar.",409);
-   const updated=await db.query("UPDATE bookshare_v2.copies SET status=$2 WHERE id=$1 RETURNING *",[id,status]);
+   const updated=await db.query("UPDATE bookshare_v2.copies SET status=$2 WHERE id=$1 AND school_id=$3 RETURNING *",[id,status,req.schoolId]);
    return updated.rows[0];
  });
  res.json({item:result});
@@ -297,11 +299,11 @@ app.post("/api/media",wrap(async(req,res)=>{
  let buffer;
  try{buffer=await sharp(raw,{limitInputPixels:16000000}).rotate().resize({width:700,height:700,fit:"inside",withoutEnlargement:true}).webp({quality:78}).toBuffer()}
  catch{throw new DomainError("Arquivo de imagem inválido.");}
- const rows=await query("INSERT INTO bookshare_v2.media_assets(mime,data,created_by) VALUES('image/webp',$1,$2) RETURNING id",[buffer,req.identity.sub]);
+ const rows=await query("INSERT INTO bookshare_v2.media_assets(mime,data,created_by,school_id) VALUES('image/webp',$1,$2,$3) RETURNING id",[buffer,req.identity.sub,req.schoolId]);
  res.status(201).json({id:rows[0].id,url:"/api/media/"+rows[0].id});
 }));
 app.get("/api/media/:id",wrap(async(req,res)=>{
- const rows=await query("SELECT mime,data FROM bookshare_v2.media_assets WHERE id=$1",[validUuid(req.params.id)]);
+ const rows=await query("SELECT mime,data FROM bookshare_v2.media_assets WHERE id=$1 AND school_id=$2",[validUuid(req.params.id),req.schoolId]);
  if(!rows.length)throw new DomainError("Imagem não encontrada.",404);
  res.set({"Content-Type":rows[0].mime,"Cache-Control":"private,max-age=3600","X-Content-Type-Options":"nosniff"});
  res.send(rows[0].data);
