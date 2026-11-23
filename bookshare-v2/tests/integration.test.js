@@ -186,7 +186,7 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('#modal-form button[type=submit]').click();
     await page.locator('[data-page="loans"] [data-return]').first().waitFor();
     await page.screenshot({path:"artifacts/06-emprestimos-desktop.png",fullPage:true});
-    await page.locator('[data-route="returns"]').click();
+    await page.locator('#sidebar [data-route="returns"]').click();
     await page.locator('#returns-search').fill("O livro de teste");
     await page.locator('[data-page="returns"] [data-return]').first().waitFor();
     await page.screenshot({path:"artifacts/07-devolucoes-desktop.png",fullPage:true});
