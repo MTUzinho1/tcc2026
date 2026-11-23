@@ -148,94 +148,89 @@ app.get("/api/reports",wrap(async(req,res)=>{
  res.json({metrics:metrics[0],monthly,popular});
 }));
 app.get("/api/students",wrap(async(req,res)=>{
-  const term=String(req.query.q||"").slice(0,100);
-  const rows=await query("SELECT id,name,registration,class_name,contact,photo_id,active,created_at FROM bookshare_v2.students WHERE ($1='' OR name ILIKE '%'||$1||'%' OR registration ILIKE '%'||$1||'%') ORDER BY name LIMIT $2",[term,numberLimit(req.query.limit)]);
-  res.json({items:rows});
+ const q=String(req.query.q||"").slice(0,100);
+ const items=await query("SELECT id,name,registration,class_name,contact,photo_id,active,created_at,school_id FROM bookshare_v2.students WHERE school_id=$3 AND ($1='' OR name ILIKE '%'||$1||'%' OR registration ILIKE '%'||$1||'%') ORDER BY name LIMIT $2",[q,numberLimit(req.query.limit),req.schoolId]);
+ res.json({items});
 }));
 app.post("/api/students",wrap(async(req,res)=>{
-  const b=payload(req);
-  const rows=await query("INSERT INTO bookshare_v2.students(name,registration,class_name,contact,photo_id) VALUES($1,$2,$3,$4,$5) RETURNING id,name,registration,class_name,contact,photo_id,active",
-    [requiredText(b.name,"Nome"),requiredText(b.registration,"Matrícula",60),requiredText(b.class_name,"Turma",80),optionalText(b.contact,120),b.photo_id?validUuid(b.photo_id):null]);
-  res.status(201).json({item:rows[0]});
+ const b=payload(req),photo=b.photo_id?validUuid(b.photo_id):null;
+ if(photo && !(await query("SELECT id FROM bookshare_v2.media_assets WHERE id=$1 AND school_id=$2",[photo,req.schoolId])).length)throw new DomainError("Foto não encontrada nesta escola.",400);
+ const items=await query("INSERT INTO bookshare_v2.students(school_id,name,registration,class_name,contact,photo_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,name,registration,class_name,contact,photo_id,active,school_id",
+ [req.schoolId,requiredText(b.name,"Nome"),requiredText(b.registration,"Matrícula",60),requiredText(b.class_name,"Turma",80),optionalText(b.contact,120),photo]);
+ res.status(201).json({item:items[0]});
 }));
 app.patch("/api/students/:id",wrap(async(req,res)=>{
- const b=payload(req),id=validUuid(req.params.id);
- const rows=await query("UPDATE bookshare_v2.students SET name=$2,registration=$3,class_name=$4,contact=$5,active=$6,photo_id=$7 WHERE id=$1 RETURNING id,name,registration,class_name,contact,active,photo_id",
- [id,requiredText(b.name,"Nome"),requiredText(b.registration,"Matrícula",60),requiredText(b.class_name,"Turma",80),optionalText(b.contact,120),b.active!==false,b.photo_id?validUuid(b.photo_id):null]);
+ const b=payload(req),id=validUuid(req.params.id),photo=b.photo_id?validUuid(b.photo_id):null;
+ if(photo && !(await query("SELECT id FROM bookshare_v2.media_assets WHERE id=$1 AND school_id=$2",[photo,req.schoolId])).length)throw new DomainError("Foto não encontrada nesta escola.",400);
+ const rows=await query("UPDATE bookshare_v2.students SET name=$3,registration=$4,class_name=$5,contact=$6,active=$7,photo_id=$8 WHERE id=$1 AND school_id=$2 RETURNING id,name,registration,class_name,contact,active,photo_id,school_id",
+ [id,req.schoolId,requiredText(b.name,"Nome"),requiredText(b.registration,"Matrícula",60),requiredText(b.class_name,"Turma",80),optionalText(b.contact,120),b.active!==false,photo]);
  if(!rows.length)throw new DomainError("Aluno não encontrado.",404);res.json({item:rows[0]});
 }));
 app.get("/api/books",wrap(async(req,res)=>{
- const term=String(req.query.q||"").slice(0,100);
- const rows=await query(`SELECT b.id,b.title,b.author,b.isbn,b.category,b.cover_id,b.cover_url,
- count(c.id)::int copies,count(c.id) FILTER(WHERE c.status='available')::int available
- FROM bookshare_v2.books b LEFT JOIN bookshare_v2.copies c ON c.book_id=b.id
- WHERE ($1='' OR b.title ILIKE '%'||$1||'%' OR b.author ILIKE '%'||$1||'%' OR COALESCE(b.isbn,'') ILIKE '%'||$1||'%')
- GROUP BY b.id ORDER BY b.title LIMIT $2`,[term,numberLimit(req.query.limit)]);
- res.json({items:rows});
+ const q=String(req.query.q||"").slice(0,100);
+ const items=await query("SELECT b.id,b.title,b.author,b.isbn,b.category,b.cover_id,b.cover_url,b.school_id,count(c.id)::int copies,count(c.id) FILTER(WHERE c.status='available')::int available FROM bookshare_v2.books b LEFT JOIN bookshare_v2.copies c ON c.book_id=b.id AND c.school_id=b.school_id WHERE b.school_id=$3 AND ($1='' OR b.title ILIKE '%'||$1||'%' OR b.author ILIKE '%'||$1||'%' OR COALESCE(b.isbn,'') ILIKE '%'||$1||'%') GROUP BY b.id ORDER BY b.title LIMIT $2",[q,numberLimit(req.query.limit),req.schoolId]);
+ res.json({items});
 }));
 app.post("/api/books",wrap(async(req,res)=>{
- const b=payload(req);
- const rows=await query("INSERT INTO bookshare_v2.books(title,author,isbn,category,cover_id) VALUES($1,$2,$3,$4,$5) RETURNING *",
- [requiredText(b.title,"Título",180),requiredText(b.author,"Autor"),optionalText(b.isbn,20)||null,optionalText(b.category,80)||"Geral",b.cover_id?validUuid(b.cover_id):null]);
+ const b=payload(req),cover=b.cover_id?validUuid(b.cover_id):null;
+ if(cover && !(await query("SELECT id FROM bookshare_v2.media_assets WHERE id=$1 AND school_id=$2",[cover,req.schoolId])).length)throw new DomainError("Capa não encontrada nesta escola.",400);
+ const rows=await query("INSERT INTO bookshare_v2.books(school_id,title,author,isbn,category,cover_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",
+ [req.schoolId,requiredText(b.title,"Título",180),requiredText(b.author,"Autor"),optionalText(b.isbn,20)||null,optionalText(b.category,80)||"Geral",cover]);
  res.status(201).json({item:rows[0]});
 }));
 app.patch("/api/books/:id",wrap(async(req,res)=>{
- const b=payload(req),id=validUuid(req.params.id);
- const rows=await query("UPDATE bookshare_v2.books SET title=$2,author=$3,isbn=$4,category=$5,cover_id=$6 WHERE id=$1 RETURNING *",
- [id,requiredText(b.title,"Título",180),requiredText(b.author,"Autor"),optionalText(b.isbn,20)||null,optionalText(b.category,80)||"Geral",b.cover_id?validUuid(b.cover_id):null]);
+ const b=payload(req),id=validUuid(req.params.id),cover=b.cover_id?validUuid(b.cover_id):null;
+ if(cover && !(await query("SELECT id FROM bookshare_v2.media_assets WHERE id=$1 AND school_id=$2",[cover,req.schoolId])).length)throw new DomainError("Capa não encontrada nesta escola.",400);
+ const rows=await query("UPDATE bookshare_v2.books SET title=$3,author=$4,isbn=$5,category=$6,cover_id=$7 WHERE id=$1 AND school_id=$2 RETURNING *",
+ [id,req.schoolId,requiredText(b.title,"Título",180),requiredText(b.author,"Autor"),optionalText(b.isbn,20)||null,optionalText(b.category,80)||"Geral",cover]);
  if(!rows.length)throw new DomainError("Livro não encontrado.",404);res.json({item:rows[0]});
 }));
 app.get("/api/copies",wrap(async(req,res)=>{
- let id=req.query.book_id; if(id)validUuid(id);
- const rows=await query("SELECT c.id,c.code,c.status,c.book_id,b.title FROM bookshare_v2.copies c JOIN bookshare_v2.books b ON b.id=c.book_id WHERE ($1::uuid IS NULL OR c.book_id=$1) ORDER BY b.title,c.code LIMIT $2",[id||null,numberLimit(req.query.limit,1000)]);
- res.json({items:rows});
+ const id=req.query.book_id?validUuid(req.query.book_id):null;
+ const items=await query("SELECT c.id,c.code,c.status,c.book_id,b.title,c.school_id FROM bookshare_v2.copies c JOIN bookshare_v2.books b ON b.id=c.book_id WHERE c.school_id=$3 AND ($1::uuid IS NULL OR c.book_id=$1) ORDER BY b.title,c.code LIMIT $2",[id,numberLimit(req.query.limit,1000),req.schoolId]);
+ res.json({items});
 }));
 app.post("/api/copies",wrap(async(req,res)=>{
- const b=payload(req),rows=await query("INSERT INTO bookshare_v2.copies(book_id,code) VALUES($1,$2) RETURNING *",[validUuid(b.book_id),requiredText(b.code,"Código do exemplar",60)]);
- res.status(201).json({item:rows[0]});
+ const b=payload(req),book=validUuid(b.book_id);
+ const items=await query("INSERT INTO bookshare_v2.copies(school_id,book_id,code) SELECT $1,id,$3 FROM bookshare_v2.books WHERE id=$2 AND school_id=$1 RETURNING *",[req.schoolId,book,requiredText(b.code,"Código do exemplar",60)]);
+ if(!items.length)throw new DomainError("Livro não encontrado nesta escola.",404);
+ res.status(201).json({item:items[0]});
 }));
 app.get("/api/loans",wrap(async(req,res)=>{
- let status=String(req.query.status||"active");
- if(!["active","returned","all"].includes(status))status="active";
+ const status=["active","returned","all"].includes(String(req.query.status))?String(req.query.status):"active";
  const q=String(req.query.q||"").trim().slice(0,100);
- const rows=await query(`SELECT l.id,l.student_id,l.copy_id,l.status,l.loaned_at,l.due_date,l.returned_at,l.return_condition,l.renewals,
- s.name student,c.code,b.title book FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id
- WHERE ($1='all' OR l.status=$1)
- AND ($3='' OR s.name ILIKE '%'||$3||'%' OR b.title ILIKE '%'||$3||'%' OR c.code ILIKE '%'||$3||'%')
- ORDER BY CASE WHEN l.status='active' THEN 0 ELSE 1 END,l.due_date ASC LIMIT $2`,[status,numberLimit(req.query.limit,200),q]);
- res.json({items:rows});
+ const items=await query("SELECT l.id,l.student_id,l.copy_id,l.status,l.loaned_at,l.due_date,l.returned_at,l.return_condition,l.renewals,s.name student,c.code,b.title book FROM bookshare_v2.loans l JOIN bookshare_v2.students s ON s.id=l.student_id JOIN bookshare_v2.copies c ON c.id=l.copy_id JOIN bookshare_v2.books b ON b.id=c.book_id WHERE l.school_id=$4 AND ($1='all' OR l.status=$1) AND ($3='' OR s.name ILIKE '%'||$3||'%' OR b.title ILIKE '%'||$3||'%' OR c.code ILIKE '%'||$3||'%') ORDER BY CASE WHEN l.status='active' THEN 0 ELSE 1 END,l.due_date ASC LIMIT $2",[status,numberLimit(req.query.limit,200),q,req.schoolId]);
+ res.json({items});
 }));
 app.post("/api/loans",wrap(async(req,res)=>{
  const b=payload(req);
- const loan=await createLoan(pool,{studentId:b.student_id,copyId:b.copy_id,dueDate:b.due_date,userId:req.identity.sub});
+ const loan=await createLoan(pool,{studentId:b.student_id,copyId:b.copy_id,dueDate:b.due_date,userId:req.identity.sub,schoolId:req.schoolId});
  res.status(201).json({item:loan});
 }));
 app.post("/api/loans/:id/return",wrap(async(req,res)=>{
- const loan=await returnLoan(pool,req.params.id,String(payload(req).condition||"normal"));
+ const loan=await returnLoan(pool,req.params.id,String(payload(req).condition||"normal"),req.schoolId);
  res.json({item:loan});
 }));
 app.post("/api/loans/:id/renew",wrap(async(req,res)=>{
- const loan=await renewLoan(pool,req.params.id,payload(req).due_date);
+ const loan=await renewLoan(pool,req.params.id,payload(req).due_date,req.schoolId);
  res.json({item:loan});
 }));
 app.get("/api/reservations",wrap(async(req,res)=>{
- const rows=await query(`SELECT r.id,r.status,r.created_at,r.student_id,r.book_id,s.name student,b.title book FROM bookshare_v2.reservations r
- JOIN bookshare_v2.students s ON s.id=r.student_id JOIN bookshare_v2.books b ON b.id=r.book_id
- ORDER BY CASE WHEN r.status IN ('waiting','ready') THEN 0 ELSE 1 END,r.created_at DESC LIMIT $1`,[numberLimit(req.query.limit)]);
- res.json({items:rows});
+ const items=await query("SELECT r.id,r.status,r.created_at,r.student_id,r.book_id,s.name student,b.title book FROM bookshare_v2.reservations r JOIN bookshare_v2.students s ON s.id=r.student_id JOIN bookshare_v2.books b ON b.id=r.book_id WHERE r.school_id=$2 ORDER BY CASE WHEN r.status IN ('waiting','ready') THEN 0 ELSE 1 END,r.created_at DESC LIMIT $1",[numberLimit(req.query.limit),req.schoolId]);
+ res.json({items});
 }));
 app.post("/api/reservations",wrap(async(req,res)=>{
  const b=payload(req),student=validUuid(b.student_id),book=validUuid(b.book_id);
- const active=await query("SELECT id FROM bookshare_v2.students WHERE id=$1 AND active=true",[student]);
- if(!active.length)throw new DomainError("Aluno não encontrado ou inativo.",404);
- const rows=await query("INSERT INTO bookshare_v2.reservations(student_id,book_id,created_by) VALUES($1,$2,$3) RETURNING *",[student,book,req.identity.sub]);
- res.status(201).json({item:rows[0]});
+ const active=await query("SELECT id FROM bookshare_v2.students WHERE id=$1 AND school_id=$2 AND active=true",[student,req.schoolId]);
+ if(!active.length)throw new DomainError("Aluno não encontrado nesta escola ou inativo.",404);
+ const items=await query("INSERT INTO bookshare_v2.reservations(school_id,student_id,book_id,created_by) SELECT $1,$2,id,$4 FROM bookshare_v2.books WHERE id=$3 AND school_id=$1 RETURNING *",[req.schoolId,student,book,req.identity.sub]);
+ if(!items.length)throw new DomainError("Livro não encontrado nesta escola.",404);
+ res.status(201).json({item:items[0]});
 }));
 app.post("/api/reservations/:id/status",wrap(async(req,res)=>{
- const b=payload(req),status=String(b.status||"");
+ const status=String(payload(req).status||"");
  if(!["ready","completed","cancelled"].includes(status))throw new DomainError("Transição de reserva inválida.");
- const id=validUuid(req.params.id);
- const item=await transactReservation(pool,id,status);
+ const item=await transactReservation(pool,validUuid(req.params.id),status,req.schoolId);
  res.json({item});
 }));
 app.get("/api/users",admin,wrap(async(req,res)=>{
