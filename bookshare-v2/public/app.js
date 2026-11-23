@@ -277,7 +277,38 @@ function bindPicker(form,kind,items,labelFn,descFn,selectedCb){
 }
 
 async function openModal(type,extra){
- if(type==="student"){
+ if(type==="school"){
+    if(state.user?.role!=="admin")return;
+    const old=state.schools.find(x=>x.id===extra);
+    const fields=field("Nome da escola","name","Ex.: Colégio Helena Wysocki","text",true,old?.name||"",true)
+      +field("Cidade","city","Ex.: Araucária","text",true,old?.city||"")
+      +field("Estado","state","PR","text",true,old?.state||"PR")
+      +field("Endereço","address","Rua e número","text",false,old?.address||"",true)
+      +field("Telefone","phone","Opcional","text",false,old?.phone||"")
+      +field("E-mail da escola","email","Opcional","email",false,old?.email||"")
+      +(old?selectField("Situação da escola","active",[["true","Ativa"],["false","Desativada"]]):"");
+    openDialog(old?"Editar escola":"Cadastrar escola",old?"Atualize os dados da unidade escolar.":"Selecione a escola no topo para cadastrar seus alunos e livros.",fields,async b=>{
+      const d=await api(old?"/schools/"+old.id:"/schools",{method:old?"PATCH":"POST",
+      body:JSON.stringify({name:b.name,city:b.city,state:b.state,address:b.address,phone:b.phone,email:b.email,active:b.active!=="false"})});
+      if(!old)state.schoolId=d.item.id;
+      await loadSchools();
+    },old?"Salvar escola":"Cadastrar escola");
+    if(old)$("#modal-form [name=active]").value=String(old.active);
+  }
+  else if(type==="delete"){
+    if(state.user?.role!=="admin")return;
+    const {kind,id,label}=extra;
+    const routes={school:"schools",user:"users",student:"students",book:"books",copy:"copies"};
+    if(!routes[kind])return;
+    const fields='<label class="wide">Para confirmar, digite EXCLUIR<input name="confirmation" autocomplete="off" placeholder="EXCLUIR" required></label>';
+    openDialog("Excluir "+label,"Esta ação não poderá ser desfeita. Registros com histórico protegido não poderão ser excluídos.",fields,async b=>{
+      if(b.confirmation.trim().toUpperCase()!=="EXCLUIR")throw Error("Digite EXCLUIR para confirmar.");
+      await api("/"+routes[kind]+"/"+id,{method:"DELETE"});
+      if(kind==="school" && state.schoolId===id)state.schoolId=state.user.school_id;
+      if(kind==="school")await loadSchools();
+    },"Excluir definitivamente");
+  }
+  else if(type==="student"){
    const old=state.students.find(x=>x.id===extra);
    const fields=field("Nome completo","name","Nome do aluno","text",true,old?.name||"",true)
      +field("Matrícula","registration","Número de matrícula","text",true,old?.registration||"")
