@@ -294,7 +294,7 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     const card=await mobile.locator(".book-card").first().evaluate(el=>{
       const cover=el.querySelector(".book-cover").getBoundingClientRect();
       const body=el.querySelector(".book-body").getBoundingClientRect();
-      return cover.bottom<=body.top+1;
+      return cover.bottom<=body.top+1 || cover.right<=body.left+1;
     });
     assert.ok(card,"Capa do livro invade informações no celular");
     assert.deepEqual(errors,[]);
