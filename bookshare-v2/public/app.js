@@ -182,6 +182,65 @@ async function uploadImage(form){
  const image=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error("Falha na leitura da foto."));reader.readAsDataURL(file)});
  return (await api("/media",{method:"POST",body:JSON.stringify({image})})).id;
 }
+
+function pickerHtml(kind,label,placeholder){
+ const id="picker-"+kind;
+ return '<div class="entity-picker" data-picker="'+esc(kind)+'"><label for="'+id+'">'+esc(label)+'</label>'+
+  '<div class="picker-input-wrap"><svg class="ico" aria-hidden="true"><use href="#search"/></svg><input id="'+id+'" type="search" name="'+esc(kind)+'_search" placeholder="'+esc(placeholder)+'" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="'+id+'-results"></div>'+
+  '<input type="hidden" name="'+esc(kind)+'_id"><div class="picker-results" id="'+id+'-results" role="listbox" hidden></div>'+
+  '<div class="picker-selected" hidden><span class="picker-selected-icon">✓</span><span class="picker-chosen"></span><button type="button" class="picker-change">Trocar</button></div></div>';
+}
+function bindPicker(form,kind,items,labelFn,descFn,selectedCb){
+ const container=form.querySelector('[data-picker="'+kind+'"]');
+ const search=container.querySelector('input[type="search"]');
+ const value=container.querySelector('input[type="hidden"]');
+ const results=container.querySelector('.picker-results');
+ const selected=container.querySelector('.picker-selected');
+ const chosen=container.querySelector('.picker-chosen');
+ const change=container.querySelector('.picker-change');
+ let current=null;
+ const norm=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ function close(){results.hidden=true;search.setAttribute("aria-expanded","false")}
+ function choose(item){
+   current=item;value.value=item.id;search.value=labelFn(item);search.hidden=true;
+   chosen.textContent=labelFn(item)+" · "+descFn(item);
+   selected.hidden=false;close();selectedCb?.();
+ }
+ function draw(){
+   results.replaceChildren();
+   if(!search.value.trim()){close();return;}
+   const q=norm(search.value.trim());
+   const matching=items.filter(item=>norm(labelFn(item)+" "+descFn(item)).includes(q)).slice(0,7);
+   for(const item of matching){
+     const row=document.createElement("button");row.type="button";row.className="picker-option";row.setAttribute("role","option");
+     const title=document.createElement("strong");title.textContent=labelFn(item);
+     const desc=document.createElement("small");desc.textContent=descFn(item);
+     row.append(title,desc);row.addEventListener("click",()=>choose(item));results.append(row);
+   }
+   if(!matching.length){
+     const empty=document.createElement("p");empty.className="picker-no-results";empty.textContent="Nenhum resultado. Tente outra busca.";results.append(empty);
+   }
+   results.hidden=false;search.setAttribute("aria-expanded","true");
+ }
+ search.addEventListener("input",()=>{current=null;value.value="";selectedCb?.();draw()});
+ search.addEventListener("focus",draw);
+ search.addEventListener("keydown",event=>{
+   if(event.key==="Escape")close();
+   if(event.key==="ArrowDown"&&!results.hidden){event.preventDefault();results.querySelector("button")?.focus();}
+   if(event.key==="Enter"&&!results.hidden){
+     const first=results.querySelector("button");if(first){event.preventDefault();first.click();}
+   }
+ });
+ results.addEventListener("keydown",event=>{
+   const buttons=[...results.querySelectorAll("button")];const idx=buttons.indexOf(document.activeElement);
+   if(event.key==="ArrowDown"){event.preventDefault();buttons[Math.min(idx+1,buttons.length-1)]?.focus();}
+   if(event.key==="ArrowUp"){event.preventDefault();if(idx===0)search.focus();else buttons[idx-1]?.focus();}
+   if(event.key==="Escape"){close();search.focus();}
+ });
+ change.addEventListener("click",()=>{selected.hidden=true;search.hidden=false;search.value="";value.value="";current=null;selectedCb?.();search.focus()});
+ return {choose,clear:()=>change.click(),search,get selected(){return current}};
+}
+
 async function openModal(type,extra){
  if(type==="student"){
    const old=state.students.find(x=>x.id===extra);
