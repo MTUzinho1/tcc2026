@@ -126,6 +126,10 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     ok(up,201);
     const uploaded=await fetch(BASE+"/api/media/"+up.body.id,{headers:{Cookie:cookie}});
     assert.equal(uploaded.status,200);assert.equal(uploaded.headers.get("content-type"),"image/webp");
+    const studentPhoto=await request("PATCH","/students/"+student1,{name:"Estudante Alpha QA",registration:"QA-001",class_name:"3º B",contact:"",photo_id:up.body.id},cookie);
+    ok(studentPhoto,200);assert.equal(studentPhoto.body.item.photo_id,up.body.id);
+    const bookCover=await request("PATCH","/books/"+book,{title:"O livro de teste",author:"Equipe QA",isbn:"",category:"Literatura",cover_id:up.body.id},cookie);
+    ok(bookCover,200);assert.equal(bookCover.body.item.cover_id,up.body.id);
     ok(await request("POST","/media",{image:"data:text/html;base64,PGh0bWw+"},cookie),400);
     ok(await request("POST","/books",{title:"Origem inválida",author:"QA"},cookie,false),403);
     const staff=await request("POST","/users",{name:"Funcionária QA",email:"staff.qa@bookshare.test",role:"librarian",password:"StaffStrong2026!"},cookie);
@@ -164,6 +168,18 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('#modal-form button[type=submit]').click();
     await page.getByText("Aluno criado na interface",{exact:true}).waitFor();
     await page.screenshot({path:"artifacts/v2-alunos-desktop.png",fullPage:true});
+    await page.locator('[data-route="loans"]').click();
+    await page.locator('[data-modal="loan"]').click();
+    await page.locator('#modal-form [name=student_id]').selectOption(student1);
+    await page.locator('#modal-form [name=copy_id]').selectOption(copy2);
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.locator('[data-loan-filter="active"]').click();
+    await page.locator('[data-page="loans"] tbody tr').first().waitFor();
+    await page.screenshot({path:"artifacts/v2-emprestimos-desktop.png",fullPage:true});
+    await page.locator('[data-page="loans"] [data-return]').first().click();
+    await page.locator('#modal-form [name=condition]').selectOption("normal");
+    await page.locator('#modal-form button[type=submit]').click();
+    await page.getByText("Operação concluída.",{exact:true}).waitFor();
     assert.deepEqual(errors,[]);
     const mobile=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
     mobile.on("pageerror",err=>errors.push(err.message));
@@ -176,6 +192,14 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await mobile.locator("#menu-toggle").click();
     await mobile.locator('[data-route="books"]').click();
     await mobile.locator('[data-page="books"]:not([hidden])').waitFor();
+    await mobile.locator(".book-card").first().waitFor();
+    const noHeaderCollision=await mobile.evaluate(()=>{
+      const brand=document.querySelector(".top-brand").getBoundingClientRect();
+      const logout=document.querySelector(".top-right .text-button").getBoundingClientRect();
+      const menu=document.querySelector(".mobile-menu").getBoundingClientRect();
+      return brand.right+3<=logout.left && logout.right+3<=menu.left;
+    });
+    assert.ok(noHeaderCollision,"Cabeçalho mobile tem elementos sobrepostos");
     await mobile.screenshot({path:"artifacts/v2-acervo-mobile.png",fullPage:true});
     assert.deepEqual(errors,[]);
   });
