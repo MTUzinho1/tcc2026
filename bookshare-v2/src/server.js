@@ -18,7 +18,7 @@ if (!process.env.DATABASE_URL) throw new Error("Configure DATABASE_URL de um ban
 const pool = new Pool({connectionString:process.env.DATABASE_URL, ssl:process.env.DATABASE_SSL === "true" ? {rejectUnauthorized:true}:false});
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 app.disable("x-powered-by");
-app.use(helmet({contentSecurityPolicy:{directives:{"default-src":["'self'"],"script-src":["'self'"],"style-src":["'self'"],"img-src":["'self'","data:"],"connect-src":["'self'"],"object-src":["'none'"],"frame-ancestors":["'none'"]}}}));
+app.use(helmet({contentSecurityPolicy:{directives:{"default-src":["'self'"],"script-src":["'self'"],"style-src":["'self'"],"img-src":["'self'","data:","https://books.google.com","https://books.googleusercontent.com","https://covers.openlibrary.org","https://images-na.ssl-images-amazon.com","https://m.media-amazon.com"],"connect-src":["'self'"],"object-src":["'none'"],"frame-ancestors":["'none'"]}}}));
 app.use(express.json({limit:"2mb"}));
 app.use(express.static(root,{index:false}));
 app.use("/api",rateLimit({windowMs:15*60*1000,limit:300,standardHeaders:"draft-7",legacyHeaders:false}));
@@ -52,7 +52,7 @@ function guardOrigin(req,res,next){
 app.use("/api",guardOrigin);
 const wrap = f => (req,res,next)=>Promise.resolve(f(req,res)).catch(next);
 function payload(req){ return req.body && typeof req.body==="object" && !Array.isArray(req.body) ? req.body:{}; }
-function numberLimit(value, max=100) { const n = Number(value || 40);return Number.isInteger(n)?Math.min(Math.max(n,1),max):40; }
+function numberLimit(value, max=1000) { const n = Number(value || 40);return Number.isInteger(n)?Math.min(Math.max(n,1),max):40; }
 async function query(sql,args=[]){const r=await pool.query(sql,args);return r.rows}
 async function bootAdmin(){
   const email=String(process.env.BOOTSTRAP_ADMIN_EMAIL||"").trim().toLowerCase();
@@ -127,7 +127,7 @@ app.patch("/api/students/:id",wrap(async(req,res)=>{
 }));
 app.get("/api/books",wrap(async(req,res)=>{
  const term=String(req.query.q||"").slice(0,100);
- const rows=await query(`SELECT b.id,b.title,b.author,b.isbn,b.category,b.cover_id,
+ const rows=await query(`SELECT b.id,b.title,b.author,b.isbn,b.category,b.cover_id,b.cover_url,
  count(c.id)::int copies,count(c.id) FILTER(WHERE c.status='available')::int available
  FROM bookshare_v2.books b LEFT JOIN bookshare_v2.copies c ON c.book_id=b.id
  WHERE ($1='' OR b.title ILIKE '%'||$1||'%' OR b.author ILIKE '%'||$1||'%' OR COALESCE(b.isbn,'') ILIKE '%'||$1||'%')
