@@ -399,7 +399,7 @@ document.addEventListener("click",async e=>{
  if(el.dataset.action==="back-landing"){showLanding();return;}
  if(el.dataset.action==="print-reports"){window.print();return;}
  if(el.dataset.modal)return openModal(el.dataset.modal);
- if(el.dataset.close){dialog.close();return;}
+ if(el.hasAttribute("data-close")){dialog.close();return;}
  if(el.dataset.addCopy){if(dialog.open)dialog.close();return openModal("copy",el.dataset.addCopy);}
  if(el.dataset.editStudent)return openModal("student",el.dataset.editStudent);
   if(el.dataset.editBook)return openModal("book",el.dataset.editBook);
