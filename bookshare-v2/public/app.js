@@ -186,15 +186,40 @@ async function openModal(type,extra){
  }
  else if(type==="loan"){
    const [students,copies]=await Promise.all([getItems("/students?limit=1000"),getItems("/copies?limit=1000")]);
+   const activeStudents=students.filter(x=>x.active);
    const ready=copies.filter(x=>x.status==="available");
-   if(!students.length||!ready.length)return toast("Cadastre um aluno e pelo menos um exemplar disponível.",true);
+   if(!activeStudents.length||!ready.length)return toast("Cadastre alunos e exemplares disponíveis antes de emprestar.",true);
    const due=new Date();due.setDate(due.getDate()+14);
-   const dueStr=due.toISOString().slice(0,10);
-   const fields=selectField("Aluno","student_id",students.filter(x=>x.active).map(x=>[x.id,x.name+" · "+x.registration]))+selectField("Exemplar disponível","copy_id",ready.map(x=>[x.id,x.title+" · "+x.code]))+field("Data de devolução","due_date","","date",true,dueStr,true);
-   openDialog("Novo empréstimo","Selecione aluno, exemplar e vencimento.",fields,async b=>api("/loans",{method:"POST",body:JSON.stringify(b)}),"Registrar empréstimo");
-   if(extra?.student_id){$("#modal-form [name=student_id]").value=extra.student_id;}
-   if(extra?.book_id){const candidate=ready.find(c=>c.book_id===extra.book_id);if(candidate)$("#modal-form [name=copy_id]").value=candidate.id;}
- }
+   const date=due.toISOString().slice(0,10);
+   const searchSelect=(label,searchName,selectName,placeholder)=>'<label class="wide">'+esc(label)+'<input type="search" name="'+searchName+'" placeholder="'+esc(placeholder)+'" autocomplete="off"></label><label class="wide">Escolha na lista<select name="'+selectName+'" required><option value="">Selecione</option></select></label>';
+   const fields=searchSelect("1. Buscar aluno","student_search","student_id","Digite nome ou matrícula")
+      +searchSelect("2. Buscar livro","copy_search","copy_id","Digite título ou código")
+      +field("3. Data prevista para devolução","due_date","","date",true,date,true);
+   openDialog("Fazer empréstimo","Procure o aluno e o livro. Depois confirme a data.",fields,async b=>{
+     if(!b.student_id||!b.copy_id)throw Error("É necessário selecionar o aluno e o livro.");
+     await api("/loans",{method:"POST",body:JSON.stringify({student_id:b.student_id,copy_id:b.copy_id,due_date:b.due_date})});
+   },"Confirmar empréstimo");
+   const form=$("#modal-form");
+   const bind=(searchName,selectName,items,labelFn)=>{
+     const input=form.querySelector('[name="'+searchName+'"]');
+     const select=form.querySelector('[name="'+selectName+'"]');
+     const normalize=v=>v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+     const update=()=>{
+       const q=normalize(input.value.trim());
+       const previous=select.value;
+       const list=items.filter(x=>normalize(labelFn(x)).includes(q)).slice(0,40);
+       select.replaceChildren(new Option(list.length?"Selecione uma opção":"Nenhum resultado encontrado",""));
+       for(const item of list)select.add(new Option(labelFn(item),item.id));
+       if(list.some(x=>x.id===previous))select.value=previous;
+     };
+     input.addEventListener("input",update);update();
+     return {input,select,update};
+   };
+   const a=bind("student_search","student_id",activeStudents,x=>x.name+" · "+x.registration);
+   const b=bind("copy_search","copy_id",ready,x=>x.title+" · "+x.code);
+   if(extra?.student_id){const selected=activeStudents.find(x=>x.id===extra.student_id);if(selected){a.input.value=selected.name;a.update();a.select.value=selected.id;}}
+   if(extra?.book_id){const selected=ready.find(x=>x.book_id===extra.book_id);if(selected){b.input.value=selected.title;b.update();b.select.value=selected.id;}}
+  }
  else if(type==="reservation"){
    const [students,books]=await Promise.all([getItems("/students?limit=1000"),getItems("/books?limit=1000")]);
    if(!students.length||!books.length)return toast("Cadastre alunos e livros antes de reservar.",true);
