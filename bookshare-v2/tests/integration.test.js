@@ -184,7 +184,7 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator(".book-card [data-edit-book]").first().click();
     await page.locator('#modal-form [name=category]').fill("Literatura QA");
     await page.locator('#modal-form button[type=submit]').click();
-    await page.locator("#dialog:not([open])").waitFor();
+    await page.locator("#dialog").waitFor({state:"hidden"});
     await page.screenshot({path:"artifacts/05-livros-desktop.png",fullPage:true});
     await page.locator('[data-route="loans"]').click();
     await page.locator('[data-page="loans"] [data-modal="loan"]').click();
@@ -202,7 +202,7 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await page.locator('[data-page="returns"] [data-return]').first().click();
     await page.locator('#modal-form [name=condition]').selectOption("normal");
     await page.locator('#modal-form button[type=submit]').click();
-    await page.locator("#dialog:not([open])").waitFor();
+    await page.locator("#dialog").waitFor({state:"hidden"});
     await page.locator('[data-route="reports"]').click();
     await page.locator(".report-stat").first().waitFor();
     await page.screenshot({path:"artifacts/08-relatorios-desktop.png",fullPage:true});
