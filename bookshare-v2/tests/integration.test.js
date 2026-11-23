@@ -13,11 +13,12 @@ const ADMIN_PASSWORD="Local_test_very_strong_2026";
 const origin=BASE;
 const ok=(res,status)=>assert.equal(res.status,status,`HTTP ${res.status}, esperado ${status}: ${res.body?.error||""}`);
 
-async function request(method,path,data,cookie,withOrigin=true){
+async function request(method,path,data,cookie,withOrigin=true,schoolId=null){
   const response=await fetch(BASE+"/api"+path,{
     method,headers:{
       ...(data!==undefined?{"Content-Type":"application/json"}:{}),
       ...(cookie?{Cookie:cookie}:{}),
+       ...(schoolId?{"x-school-id":schoolId}:{}),
       ...(withOrigin?{Origin:origin}:{}),
     },
     ...(data!==undefined?{body:JSON.stringify(data)}:{})
