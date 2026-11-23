@@ -203,4 +203,11 @@ test("BookShare V2: API, banco, permissões e interface real", {timeout:240000},
     await mobile.screenshot({path:"artifacts/v2-acervo-mobile.png",fullPage:true});
     assert.deepEqual(errors,[]);
   });
+  await t.test("usuário consegue trocar senha e senha anterior deixa de funcionar",async()=>{
+    const target="NovaSenhaQA_Com_16_Caracteres_2026";
+    ok(await request("POST","/me/password",{current_password:"senha errada",new_password:target},cookie),403);
+    ok(await request("POST","/me/password",{current_password:ADMIN_PASSWORD,new_password:target},cookie),200);
+    ok(await request("POST","/auth/login",{email:ADMIN_EMAIL,password:ADMIN_PASSWORD}),401);
+    ok(await request("POST","/auth/login",{email:ADMIN_EMAIL,password:target}),200);
+  });
 });
