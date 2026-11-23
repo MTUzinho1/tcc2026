@@ -3,7 +3,21 @@ BEGIN;
 CREATE SCHEMA IF NOT EXISTS bookshare_v2;
 SET LOCAL search_path TO bookshare_v2, public;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE TABLE IF NOT EXISTS schools (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(160) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  state CHAR(2) NOT NULL DEFAULT 'PR',
+  address VARCHAR(220) NOT NULL DEFAULT '',
+  phone VARCHAR(40) NOT NULL DEFAULT '',
+  email VARCHAR(180) NOT NULL DEFAULT '',
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO schools(id,name,city,state) VALUES ('00000000-0000-4000-8000-000000000010','Colégio Helena Wysocki','Araucária','PR')
+ON CONFLICT(id) DO NOTHING;
 CREATE TABLE IF NOT EXISTS users (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(120) NOT NULL,
   email VARCHAR(180) NOT NULL UNIQUE,
@@ -13,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS media_assets (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   mime TEXT NOT NULL CHECK (mime IN ('image/webp')),
   data BYTEA NOT NULL,
@@ -20,9 +35,10 @@ CREATE TABLE IF NOT EXISTS media_assets (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS students (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(160) NOT NULL,
-  registration VARCHAR(60) NOT NULL UNIQUE,
+  registration VARCHAR(60) NOT NULL,
   class_name VARCHAR(80) NOT NULL,
   contact VARCHAR(120) NOT NULL DEFAULT '',
   photo_id UUID REFERENCES media_assets(id) ON DELETE SET NULL,
@@ -30,23 +46,26 @@ CREATE TABLE IF NOT EXISTS students (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS books (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title VARCHAR(180) NOT NULL,
   author VARCHAR(160) NOT NULL,
-  isbn VARCHAR(20) UNIQUE,
+  isbn VARCHAR(20),
   category VARCHAR(80) NOT NULL DEFAULT 'Geral',
   cover_id UUID REFERENCES media_assets(id) ON DELETE SET NULL,
   cover_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS copies (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   book_id UUID NOT NULL REFERENCES books(id) ON DELETE RESTRICT,
-  code VARCHAR(60) NOT NULL UNIQUE,
+  code VARCHAR(60) NOT NULL,
   status TEXT NOT NULL DEFAULT 'available' CHECK(status IN ('available','loaned','damaged','lost')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS loans (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
   copy_id UUID NOT NULL REFERENCES copies(id) ON DELETE RESTRICT,
@@ -61,6 +80,7 @@ CREATE TABLE IF NOT EXISTS loans (
 CREATE UNIQUE INDEX IF NOT EXISTS one_active_loan_per_copy ON loans(copy_id) WHERE status='active';
 CREATE INDEX IF NOT EXISTS loans_by_due ON loans(due_date) WHERE status='active';
 CREATE TABLE IF NOT EXISTS reservations (
+  school_id UUID NOT NULL REFERENCES schools(id) DEFAULT '00000000-0000-4000-8000-000000000010',
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE RESTRICT,
   book_id UUID NOT NULL REFERENCES books(id) ON DELETE RESTRICT,
@@ -72,6 +92,17 @@ CREATE TABLE IF NOT EXISTS reservations (
 CREATE UNIQUE INDEX IF NOT EXISTS one_reservation_per_student_book ON reservations(student_id,book_id)
   WHERE status IN ('waiting','ready');
 
+CREATE UNIQUE INDEX IF NOT EXISTS students_school_registration ON students(school_id,registration);
+CREATE UNIQUE INDEX IF NOT EXISTS books_school_isbn ON books(school_id,isbn);
+CREATE UNIQUE INDEX IF NOT EXISTS copies_school_code ON copies(school_id,code);
+CREATE UNIQUE INDEX IF NOT EXISTS students_id_school ON students(id,school_id);
+CREATE UNIQUE INDEX IF NOT EXISTS books_id_school ON books(id,school_id);
+CREATE UNIQUE INDEX IF NOT EXISTS copies_id_school ON copies(id,school_id);
+ALTER TABLE copies ADD CONSTRAINT copies_book_same_school FOREIGN KEY(book_id,school_id) REFERENCES books(id,school_id);
+ALTER TABLE loans ADD CONSTRAINT loans_student_same_school FOREIGN KEY(student_id,school_id) REFERENCES students(id,school_id);
+ALTER TABLE loans ADD CONSTRAINT loans_copy_same_school FOREIGN KEY(copy_id,school_id) REFERENCES copies(id,school_id);
+ALTER TABLE reservations ADD CONSTRAINT reservations_student_same_school FOREIGN KEY(student_id,school_id) REFERENCES students(id,school_id);
+ALTER TABLE reservations ADD CONSTRAINT reservations_book_same_school FOREIGN KEY(book_id,school_id) REFERENCES books(id,school_id);
 -- Somente a API Node autenticada acessa as tabelas: nada é liberado à Data API pública.
 REVOKE ALL ON SCHEMA bookshare_v2 FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON ALL TABLES IN SCHEMA bookshare_v2 FROM PUBLIC, anon, authenticated;
