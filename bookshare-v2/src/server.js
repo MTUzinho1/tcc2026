@@ -84,6 +84,16 @@ app.get("/api/me",authenticate,wrap(async(req,res)=>{
   res.json({user:users[0]});
 }));
 app.use("/api",authenticate);
+app.post("/api/me/password",wrap(async(req,res)=>{
+  const body=payload(req),current=String(body.current_password||""),updated=String(body.new_password||"");
+  if(updated.length<12 || updated.length>128) throw new DomainError("A nova senha deve ter entre 12 e 128 caracteres.");
+  if(updated===current) throw new DomainError("A nova senha deve ser diferente da anterior.");
+  const found=await query("SELECT password_hash FROM bookshare_v2.users WHERE id=$1",[req.identity.sub]);
+  if(!found.length || !(await bcrypt.compare(current,found[0].password_hash))) throw new DomainError("Senha atual incorreta.",403);
+  const hash=await bcrypt.hash(updated,12);
+  await query("UPDATE bookshare_v2.users SET password_hash=$2 WHERE id=$1",[req.identity.sub,hash]);
+  res.json({ok:true,message:"Senha atualizada."});
+}));
 app.get("/api/dashboard",wrap(async(req,res)=>{
   const [metrics,attention,recent]=await Promise.all([
     query(`SELECT
